@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* Small set of reusable building blocks (used like class="btn-primary") so pages stay readable. */
+@utility page {
+  @apply mx-auto max-w-2xl px-4 pt-5 pb-28;
+}
+@utility card {
+  @apply rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-800;
+}
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition select-none active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100;
+}
+@utility btn-primary {
+  @apply btn bg-amber-500 text-stone-950 hover:bg-amber-400;
+}
+@utility btn-secondary {
+  @apply btn bg-stone-200 text-stone-900 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700;
+}
+@utility btn-danger {
+  @apply btn bg-red-700 text-white hover:bg-red-600;
+}
+@utility btn-ghost {
+  @apply btn text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800;
+}
+@utility input {
+  @apply block min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-base text-stone-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-400 focus:outline-none dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100;
+}
+@utility label {
+  @apply mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300;
+}
+@utility h1 {
+  @apply text-2xl font-bold text-stone-900 dark:text-white;
+}
+@utility h2 {
+  @apply text-lg font-semibold text-stone-900 dark:text-white;
+}
+@utility muted {
+  @apply text-sm text-stone-600 dark:text-stone-400;
+}
+@utility chip {
+  @apply inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-sm font-medium transition select-none;
+}
+@utility chip-off {
+  @apply chip border-stone-300 bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300;
+}
+@utility chip-on {
+  @apply chip border-amber-500 bg-amber-100 text-amber-950 dark:border-amber-400 dark:bg-amber-400 dark:text-stone-950;
+}
+@utility stat {
+  @apply rounded-xl bg-stone-100 px-3 py-2 dark:bg-stone-800;
+}
+
+html, body { @apply bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100; }
+body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+
+/* Chart tokens (validated reference palette): text never wears the series colour. */
+.viz {
+  --chart-surface: #fcfcfb;
+  --ink-1: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --tooltip-bg: #ffffff;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --ref: #9a9890;
+  --accent: #d97706;
+}
+.viz .band-dry { fill: transparent; }
+.viz .band-maillard { fill: rgba(237, 161, 0, 0.09); }
+.viz .band-dev { fill: rgba(235, 104, 52, 0.1); }
+
+@media (prefers-color-scheme: dark) {
+  .viz {
+    --chart-surface: #1a1a19;
+    --ink-1: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --tooltip-bg: #262624;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --ref: #77756f;
+    --accent: #f59e0b;
+  }
+  .viz .band-maillard { fill: rgba(201, 133, 0, 0.12); }
+  .viz .band-dev { fill: rgba(217, 89, 38, 0.14); }
+}
