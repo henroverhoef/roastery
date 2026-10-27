@@ -1,4 +1,4 @@
-export type Table = 'roast_beans' | 'roast_roasts' | 'roast_tastings' | 'roast_settings'
+export type Table = 'roast_beans' | 'roast_roasts' | 'roast_tastings' | 'roast_settings' | 'roast_public'
 
 export interface Op {
   table: Table

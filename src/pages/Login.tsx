@@ -80,9 +80,11 @@ export default function Login() {
       <p className="muted mt-4 text-center text-xs">
         Same login as Worship Sets (it shares that database, but your roasts are private to you).
       </p>
-      <Link to="/guide" className="mt-4 text-center text-sm text-amber-700 underline dark:text-amber-400">
-        Read the roasting guide without signing in
-      </Link>
+      <div className="mt-4 flex flex-col items-center gap-2 text-sm">
+        <Link to="/library" className="text-amber-700 underline dark:text-amber-400">Browse the public roast library</Link>
+        <Link to="/guide" className="text-amber-700 underline dark:text-amber-400">Read the roasting guide</Link>
+        <span className="text-xs text-stone-500">No account needed for either.</span>
+      </div>
     </div>
   )
 }

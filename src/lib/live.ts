@@ -5,10 +5,13 @@ import type { EventType, Roast } from './types'
 // a locked phone or a flat battery mid-roast doesn't lose anything. The clock is derived from
 // the start timestamp, so it keeps counting even while the page is in the background.
 
+export type Curve = Pick<Roast, 'readings' | 'setpoints' | 'events' | 'batch_g' | 'roasted_g'>
+
 export interface LiveState {
   roast: Roast
   startedAt: number // epoch ms when the beans went in
   log: ('r' | 's' | 'e')[] // order of entries, for undo
+  follow?: { label: string; curve: Curve } // someone's public roast to roast along with
 }
 
 const KEY = 'roastery.live'
@@ -50,8 +53,8 @@ const round1 = (t: number) => Math.round(t * 10) / 10
 
 export const live = {
   get: () => state,
-  start(roast: Roast, startedAt = Date.now()) {
-    set({ roast, startedAt, log: [] })
+  start(roast: Roast, startedAt = Date.now(), follow?: LiveState['follow']) {
+    set({ roast, startedAt, log: [], ...(follow ? { follow } : {}) })
   },
   reading(c: number, t?: number) {
     if (!state) return

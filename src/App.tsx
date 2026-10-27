@@ -14,6 +14,9 @@ import BeanDetail from './pages/BeanDetail'
 import BeanEdit from './pages/BeanEdit'
 import Guide from './pages/Guide'
 import Settings from './pages/Settings'
+import Library from './pages/Library'
+import PublicRoast from './pages/PublicRoast'
+import PublicShell from './components/PublicShell'
 
 export default function App() {
   return (
@@ -29,9 +32,14 @@ function Gate() {
   const { authReady, session } = useStore()
   if (!authReady) return <Splash />
   if (!session) {
+    // Signed out: the guide and the public library are open to anyone.
     return (
       <Routes>
-        <Route path="/guide" element={<Guide />} />
+        <Route element={<PublicShell />}>
+          <Route path="/guide" element={<Guide />} />
+          <Route path="/library" element={<Library />} />
+          <Route path="/library/:id" element={<PublicRoast />} />
+        </Route>
         <Route path="*" element={<Login />} />
       </Routes>
     )
@@ -52,6 +60,8 @@ function Gate() {
         <Route path="/beans/:id" element={<BeanDetail />} />
         <Route path="/beans/:id/edit" element={<BeanEdit />} />
         <Route path="/guide" element={<Guide />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/library/:id" element={<PublicRoast />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

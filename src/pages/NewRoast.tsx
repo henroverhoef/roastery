@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRoastNumbers, useStore } from '../data/store'
 import { live, useLive } from '../lib/live'
@@ -12,6 +12,7 @@ import { targetLevelId } from '../lib/advice'
 import { computeMetrics } from '../lib/metrics'
 import { fmtDate, fmtPct, fmtTime, tempIn, toC, uid } from '../lib/format'
 import type { Bean, Roast } from '../lib/types'
+import { fetchPublicRoast, publicRoast, type PublicRow } from '../lib/public'
 
 function suggestPlan(bean: Bean | undefined): { plan: Plan; why: string } | null {
   const origin = findOrigin(bean?.country)
@@ -46,15 +47,29 @@ export default function NewRoast() {
   }, [sameBean, tastings])
   const suggestion = suggestPlan(bean)
 
+  // "Roast along" with someone's roast from the public library.
+  const followId = params.get('follow')
+  const [follow, setFollow] = useState<PublicRow | null>(null)
+  const [followError, setFollowError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!followId) return
+    fetchPublicRoast(followId).then(({ row, error }) => {
+      if (row?.data) setFollow(row)
+      else setFollowError(error ?? 'That roast is no longer in the public library.')
+    })
+  }, [followId])
+  const followCurve = follow ? publicRoast(follow) : null
+  const followM = followCurve ? computeMetrics(followCurve) : null
+
   const [refId, setRefId] = useState<string | null>(null)
   const [planId, setPlanId] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
-  const effectiveRef = touched ? refId : (bestRef?.id ?? null)
-  const effectivePlan = touched ? planId : bestRef ? null : (suggestion?.plan.id ?? null)
+  const effectiveRef = touched ? refId : followId ? null : (bestRef?.id ?? null)
+  const effectivePlan = touched ? planId : bestRef || followId ? null : (suggestion?.plan.id ?? null)
   const plan = findPlan(effectivePlan)
   const reference = roasts.find((r) => r.id === effectiveRef)
 
-  const firstSet = plan?.steps[0]?.c ?? reference?.setpoints[0]?.c ?? null
+  const firstSet = plan?.steps[0]?.c ?? reference?.setpoints[0]?.c ?? followCurve?.setpoints[0]?.c ?? null
   const [batch, setBatch] = useState('')
   const [setTemp, setSetTemp] = useState('')
   const [preheat, setPreheat] = useState('')
@@ -64,7 +79,7 @@ export default function NewRoast() {
 
   if (liveRoast) return <Navigate to="/roast/live" replace />
 
-  const defaultBatch = plan?.batch_g ?? reference?.batch_g ?? (process?.id === 'natural' ? 200 : settings.batch_g)
+  const defaultBatch = plan?.batch_g ?? reference?.batch_g ?? followCurve?.batch_g ?? (process?.id === 'natural' ? 200 : settings.batch_g)
   const defaultLevel = targetLevelId({ target_level: null } as Roast, origin) ?? ''
 
   function start() {
@@ -94,7 +109,8 @@ export default function NewRoast() {
       created_at: now,
       updated_at: now,
     }
-    live.start(roast)
+    const label = follow ? `${follow.display_name}’s roast` : null
+    live.start(roast, Date.now(), follow && followCurve && label ? { label, curve: followCurve } : undefined)
     navigate('/roast/live')
   }
 
@@ -121,6 +137,24 @@ export default function NewRoast() {
           </p>
         )}
       </div>
+
+      {followId && (
+        <div className="card border-l-4 border-sky-600 text-sm">
+          {follow && followM ? (
+            <>
+              <p className="font-semibold">Roasting along with {follow.display_name}’s roast{follow.bean_name ? ` of ${follow.bean_name}` : ''}</p>
+              <p className="muted mt-1">
+                {followCurve?.batch_g ? `${followCurve.batch_g} g · ` : ''}yellow {fmtTime(followM.yellowS)} · first crack {fmtTime(followM.fcS)} · cool {fmtTime(followM.dropS)} · DTR {fmtPct(followM.dtr)}
+                {followCurve?.setpoints.length ? ` · set ${followCurve.setpoints.map((s) => `${tempIn(s.c, unit)}°`).join(' → ')}` : ''}
+              </p>
+              <p className="muted mt-1">Their curve is drawn behind yours while you roast. Remember every Gene reads a little differently.</p>
+            </>
+          ) : (
+            <p>{followError ?? 'Loading the roast you’re following…'}</p>
+          )}
+          <Link to="/roast/new" className="mt-2 inline-block text-amber-700 underline dark:text-amber-400">Don’t follow it</Link>
+        </div>
+      )}
 
       <div className="card space-y-3">
         <h2 className="h2">Plan</h2>

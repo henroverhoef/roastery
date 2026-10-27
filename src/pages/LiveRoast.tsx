@@ -108,7 +108,9 @@ export default function LiveRoast() {
   if (!s || !roast) return <Navigate to={leaving.current ?? '/roast/new'} replace />
 
   const bean = beans.find((b) => b.id === roast.bean_id)
-  const reference = roasts.find((r) => r.id === roast.reference_id) ?? null
+  const ownRef = roasts.find((r) => r.id === roast.reference_id) ?? null
+  const reference = ownRef ?? s.follow?.curve ?? null
+  const refLabel = ownRef ? `#${numbers.get(ownRef.id)}` : (s.follow?.label ?? null)
   const refM = reference ? computeMetrics(reference) : null
   const plan = findPlan(roast.plan_id)
   const roastT = dropT ?? t
@@ -188,11 +190,11 @@ export default function LiveRoast() {
             Plan: {next.at == null ? `at first crack${next.step.offset_s ? ` + ${next.step.offset_s} s` : ''}` : `at ${fmtTime(next.at)}`} turn to <b>{fmtTemp(next.step.c, unit)}</b>.
           </div>
         )}
-        {m.fcS != null && dropT == null && <DropTargets fcS={m.fcS} t={t} refDrop={refM?.dropS ?? null} refDev={refM?.devS ?? null} refLabel={reference ? `#${numbers.get(reference.id)}` : null} />}
+        {m.fcS != null && dropT == null && <DropTargets fcS={m.fcS} t={t} refDrop={refM?.dropS ?? null} refDev={refM?.devS ?? null} refLabel={refLabel} />}
         {m.fcS == null && dropT == null && (
           <div className="rounded-xl bg-stone-100 p-2.5 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
             {refM && reference ? (
-              <>Reference #{numbers.get(reference.id)}: yellow {fmtTime(refM.yellowS)} · first crack {fmtTime(refM.fcS)} at {fmtTemp(refM.tempAtFcC, unit)} · cool {fmtTime(refM.dropS)}</>
+              <>{ownRef ? 'Reference' : 'Roasting along with'} {refLabel}: yellow {fmtTime(refM.yellowS)} · first crack {fmtTime(refM.fcS)} at {fmtTemp(refM.tempAtFcC, unit)} · cool {fmtTime(refM.dropS)}</>
             ) : (
               <>At about 232 °C on the Gene, yellowing usually comes at about 4–6 min and first crack at about 9–12 min (Burman). Watch the beans: cracks are hard to hear.</>
             )}
@@ -205,7 +207,7 @@ export default function LiveRoast() {
 
       {/* chart */}
       <div className="mt-2">
-        <RoastChart roast={roast} reference={reference} referenceLabel={reference ? `#${numbers.get(reference.id)}` : undefined} unit={unit} nowS={dropT == null ? t : null} height={170} rorHeight={58} ghostSetpoints={ghost} />
+        <RoastChart roast={roast} reference={reference} referenceLabel={refLabel ?? undefined} unit={unit} nowS={dropT == null ? t : null} height={170} rorHeight={58} ghostSetpoints={ghost} />
       </div>
 
       {/* events */}

@@ -100,6 +100,7 @@ export interface Settings {
   reminder_s: number // beep to log a temperature every N seconds (0 = off)
   sound: boolean
   location_m: number | null // altitude where you roast, metres
+  public_name: string | null // name shown on roasts you share in the public library
 }
 
 export const defaultSettings: Settings = {
@@ -109,4 +110,5 @@ export const defaultSettings: Settings = {
   reminder_s: 30,
   sound: true,
   location_m: null,
+  public_name: null,
 }

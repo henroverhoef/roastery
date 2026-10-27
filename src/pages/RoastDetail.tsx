@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useRoastNumbers, useStore } from '../data/store'
 import RoastChart from '../components/RoastChart'
 import AdviceList from '../components/AdviceList'
+import ShareCard from '../components/ShareCard'
+import TastingSummary from '../components/TastingSummary'
 import { Empty, Header, Stat, numOrNull } from '../components/ui'
 import { computeMetrics, setpointAt } from '../lib/metrics'
 import { daysBetween, fmtDateTime, fmtDuration, fmtPct, fmtTemp, fmtTime } from '../lib/format'
 import { adviseTasting, type HistoryEntry } from '../lib/advice'
 import { copyText, downloadText, readingsCsv, roastForClaude } from '../lib/export'
 import { findLevel, lossBandFor } from '../knowledge/roasting'
-import { findFlavour, wants as wantList } from '../knowledge/flavours'
 import { findPlan } from '../knowledge/gene'
 import { findOrigin } from '../knowledge/origins'
 
@@ -111,24 +112,7 @@ export default function RoastDetail() {
         )}
         {mine.map((t) => (
           <Link key={t.id} to={`/roasts/${roast.id}/taste/${t.id}`} className="card block">
-            <div className="flex items-baseline justify-between">
-              <span className="font-medium">{t.tasted_on} · day {daysBetween(roast.roasted_at, t.tasted_on)}{t.brew ? ` · ${t.brew}` : ''}</span>
-              <span className="text-amber-500">{t.rating ? '★'.repeat(t.rating) : ''}</span>
-            </div>
-            {t.tags.length > 0 && <p className="mt-1 text-sm">{t.tags.map((x) => findFlavour(x)?.name ?? x).join(' · ')}</p>}
-            <p className="mt-1 text-xs text-stone-500">
-              {[
-                ['Acidity', t.acidity],
-                ['Sweetness', t.sweetness],
-                ['Body', t.body],
-                ['Bitterness', t.bitterness],
-              ]
-                .filter(([, v]) => v != null)
-                .map(([k, v]) => `${k} ${v === 0 ? '✓' : (v as number) > 0 ? '+'.repeat(v as number) : '−'.repeat(-(v as number))}`)
-                .join(' · ')}
-              {t.wants.length ? ` · wants: ${t.wants.map((w) => wantList.find((x) => x.id === w)?.name ?? w).join(', ')}` : ''}
-            </p>
-            {t.notes && <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">{t.notes}</p>}
+            <TastingSummary t={t} roastedAt={roast.roasted_at} />
           </Link>
         ))}
       </section>
@@ -159,6 +143,8 @@ export default function RoastDetail() {
         </div>
         {copied && <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400" role="status">{copied}</p>}
       </section>
+
+      <ShareCard roastId={roast.id} />
 
       <details className="card">
         <summary className="cursor-pointer font-semibold">All readings &amp; events ({timeline.length})</summary>
