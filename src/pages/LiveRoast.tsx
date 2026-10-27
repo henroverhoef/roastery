@@ -191,6 +191,11 @@ export default function LiveRoast() {
           </div>
         )}
         {m.fcS != null && dropT == null && <DropTargets fcS={m.fcS} t={t} refDrop={refM?.dropS ?? null} refDev={refM?.devS ?? null} refLabel={refLabel} />}
+        {roast.preheat_c != null && roast.readings.length < 3 && dropT == null && (
+          <div className="rounded-xl bg-sky-50 p-2.5 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
+            Preheated: the display drops after loading, then climbs. Log a reading now and one at the lowest point.
+          </div>
+        )}
         {m.fcS == null && dropT == null && (
           <div className="rounded-xl bg-stone-100 p-2.5 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
             {refM && reference ? (

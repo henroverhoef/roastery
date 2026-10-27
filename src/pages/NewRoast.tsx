@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRoastNumbers, useStore } from '../data/store'
 import { live, useLive } from '../lib/live'
 import { Field, Header, SourceLinks, numOrNull } from '../components/ui'
-import { findPlan, plans, type Plan } from '../knowledge/gene'
+import { findPlan, plans, preheatHowTo, type Plan } from '../knowledge/gene'
 import { findOrigin, isAmericas } from '../knowledge/origins'
 import { findProcess } from '../knowledge/processes'
 import { roastLevels } from '../knowledge/roasting'
@@ -95,7 +95,8 @@ export default function NewRoast() {
       batch_g: numOrNull(batch) ?? defaultBatch,
       roasted_g: null,
       ambient_c: amb != null ? (unit === 'F' ? toC(amb) : amb) : null,
-      preheat_c: pre != null ? (unit === 'F' ? toC(pre) : pre) : (plan?.preheat_c ?? null),
+      // Only what was actually typed: an empty box means you didn't preheat.
+      preheat_c: pre != null ? (unit === 'F' ? toC(pre) : pre) : null,
       brew: brew || null,
       target_level: level || defaultLevel || null,
       plan_id: plan?.id ?? null,
@@ -189,6 +190,7 @@ export default function NewRoast() {
         {plan && (
           <div className="rounded-xl bg-amber-50 p-3 text-sm dark:bg-amber-950/40">
             <p>{plan.note}</p>
+            {plan.preheat_c != null && <p className="mt-2">{preheatHowTo}</p>}
             {plan.id === suggestion?.plan.id && <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">Why: {suggestion.why}</p>}
             <SourceLinks ids={plan.sources} className="mt-2" />
           </div>
@@ -199,11 +201,11 @@ export default function NewRoast() {
         <Field label="Green weight (g)" hint={process?.id === 'natural' ? 'Sweet Maria’s: 200 g for naturals' : 'Sweet Maria’s: 250 g'}>
           <input className="input" inputMode="decimal" placeholder={String(defaultBatch)} value={batch} onChange={(e) => setBatch(e.target.value)} />
         </Field>
-        <Field label={`Starting set temp (°${unit})`}>
+        <Field label={`Starting set temp (°${unit})`} hint={firstSet != null ? `Empty = ${tempIn(firstSet, unit)}°${plan ? ' from the plan' : ''}` : undefined}>
           <input className="input" inputMode="numeric" placeholder={firstSet != null ? String(tempIn(firstSet, unit)) : 'optional'} value={setTemp} onChange={(e) => setSetTemp(e.target.value)} />
         </Field>
-        <Field label={`Preheat (°${unit})`} hint="Leave empty if none">
-          <input className="input" inputMode="numeric" placeholder={plan?.preheat_c ? String(tempIn(plan.preheat_c, unit)) : 'none'} value={preheat} onChange={(e) => setPreheat(e.target.value)} />
+        <Field label={`Preheat (°${unit})`} hint={plan?.preheat_c ? `Plan: ${tempIn(plan.preheat_c, unit)}°. Type it if you preheated; empty = no preheat` : 'Empty = no preheat'}>
+          <input className="input" inputMode="numeric" placeholder="none" value={preheat} onChange={(e) => setPreheat(e.target.value)} />
         </Field>
         <Field label={`Room temp (°${unit})`} hint="Cold rooms slow the Gene">
           <input className="input" inputMode="numeric" placeholder="optional" value={ambient} onChange={(e) => setAmbient(e.target.value)} />

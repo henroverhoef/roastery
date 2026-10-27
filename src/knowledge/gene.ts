@@ -53,9 +53,9 @@ export const geneFacts: Fact[] = [
     sources: ['hbGeneHearing', 'hbGeneBatch'],
   },
   {
-    title: 'Preheating: owners disagree',
+    title: 'Preheating: how it works, and owners disagree',
     body:
-      'Some owners preheat (for example to 175–180 °C) and report shorter roasts; others say there’s no benefit and it stresses the element. If you preheat, do it the same way every time so roasts stay comparable. The app records your preheat temperature.',
+      'Preheating warms the empty machine, not the beans. Owners who do it run the Gene empty until the display reaches the preheat temperature (Roast Rebels uses 175–180 °C; one Home-Barista owner 350–400 °F), then stop it, load the beans and start the roast at the roast setting. The beans never sit at 175 °C. Taking the chamber out and adding cold beans makes the display drop well below the preheat temperature before it climbs again, which is expected. What you gain is a warm drum, heater and air, so drying starts sooner. Other owners say there’s no benefit and it stresses the element. If you preheat, do it the same way and load just as quickly every time, so roasts stay comparable.',
     sources: ['roastRebels', 'hbGeneBatch2', 'hbGeneOpinions'],
   },
   {
@@ -71,6 +71,10 @@ export const geneFacts: Fact[] = [
     sources: ['cropsterAltitude', 'baristaMagAltitude'],
   },
 ]
+
+/** Shown with any plan that preheats. */
+export const preheatHowTo =
+  'Preheat = run the empty Gene until the display shows that temperature. Then load the beans quickly (the chamber is hot) and start the roast at the plan’s setting. The display drops when the beans go in and then climbs again; that’s normal.'
 
 // The manual's roasting chart: one fixed temperature and a timer per roast level.
 export const manualChart = [
