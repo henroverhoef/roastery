@@ -21,7 +21,7 @@ A roast log and coach for the **Gene Café CBR-101** home roaster. Log the Gene�
   - Sizes the change from your own roast: the cool time that puts your DTR in Scott Rao’s 20–25% band.
   - Shows your best roast of the same bean as a reference.
   - Adds origin, process and variety notes, a weight-loss check, and a warning if you tasted it too fresh.
-- **Copy for Claude**: one tap copies the roast, bean, readings (CSV), tastings, your other roasts of that bean and the app’s suggestion, ready to paste into a new Claude chat for deeper research. There’s also CSV export of one roast or all roasts.
+- **Copy for Claude**: one tap copies the roast, bean, readings (CSV), tastings, your other roasts of that bean and the app’s suggestion, ready to paste into a new Claude chat for deeper research. If you roasted with a plan, it also includes the plan (curve and all), its target temperatures next to each reading, and planned vs actual yellow, first crack and cool times. Tick **“ask for a roast plan I can import”** and Claude is asked to reply with a plan in the Roastery plan CSV format (spec and an example included); paste the reply, or open the .csv, under **Plans → Import from Claude**, check the preview graph and save it. Plans can also be copied as CSV from the plan editor. There’s also CSV export of one roast or all roasts.
 - **My plans**: design a roast before you start. A plan holds:
   - set-temperature changes (at the start, at a time, or at first crack + a few seconds);
   - target times for yellow and first crack;
@@ -79,5 +79,6 @@ npm run build
 - `src/lib/advice.ts`: the advice rules. `src/lib/metrics.ts`: phases, DTR, rate of rise. `src/lib/export.ts`: the Claude text and CSVs.
 - `src/data/store.tsx`: offline-first store. Changes are saved on the device and queued, then uploaded in order when there’s a connection.
 - `src/lib/plans.ts` and the plan helpers in `src/knowledge/gene.ts`: your own plans (schedule, targets, cool time, curve) and turning a roast into a plan.
+- `src/lib/planCsv.ts`: the Roastery plan CSV format (what Claude is asked to write) and its reader and writer.
 - `src/lib/public.ts`: the public library. It builds the shared snapshot (and decides what is never shared) and fetches the library.
 - The Supabase URL and publishable key in `.env.production` are public by design; Row Level Security protects the data.

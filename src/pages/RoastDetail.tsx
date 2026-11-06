@@ -27,6 +27,7 @@ export default function RoastDetail() {
   const roast = roasts.find((r) => r.id === id)
   const [compareId, setCompareId] = useState<string>('')
   const [copied, setCopied] = useState<string | null>(null)
+  const [wantPlan, setWantPlan] = useState(false)
   const [weight, setWeight] = useState('')
 
   const bean = beans.find((b) => b.id === roast?.bean_id) ?? null
@@ -135,19 +136,29 @@ export default function RoastDetail() {
 
       <section className="card space-y-2">
         <h2 className="h2">Ask Claude</h2>
-        <p className="muted">Copies this roast, the bean, your tastings, your other roasts of this bean and the app’s suggestion as text. Paste it into a new Claude chat.</p>
+        <p className="muted">
+          Copies this roast, the bean, your tastings, your other roasts of this bean and the app’s suggestion as text{plan ? ', plus the plan you roasted with and how the roast compared with it' : ''}. Paste it into a new
+          Claude chat.
+        </p>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={wantPlan} onChange={(e) => setWantPlan(e.target.checked)} />
+          <span>
+            Also ask Claude for a <b>roast plan I can import</b>. Claude replies with a plan in a CSV block (or a .csv file); paste it into{' '}
+            <Link to="/plans/import" className="underline">Plans → Import from Claude</Link>.
+          </span>
+        </label>
         <div className="flex flex-wrap gap-2">
           <button
             className="btn-primary"
             onClick={async () => {
-              const ok = await copyText(roastForClaude({ roast, bean, tastings: mine, history, unit, n, plans: myPlans }))
+              const ok = await copyText(roastForClaude({ roast, bean, tastings: mine, history, unit, n, plans: myPlans, wantPlan }))
               flash(ok ? 'Copied: paste it into Claude' : 'Couldn’t copy')
             }}
           >
             Copy for Claude
           </button>
-          <button className="btn-secondary" onClick={() => downloadText(`roast-${n}-readings.csv`, readingsCsv(roast, unit))}>Readings CSV</button>
-          <button className="btn-secondary" onClick={async () => flash((await copyText(readingsCsv(roast, unit))) ? 'CSV copied' : 'Couldn’t copy')}>Copy CSV</button>
+          <button className="btn-secondary" onClick={() => downloadText(`roast-${n}-readings.csv`, readingsCsv(roast, unit, plan))}>Readings CSV</button>
+          <button className="btn-secondary" onClick={async () => flash((await copyText(readingsCsv(roast, unit, plan))) ? 'CSV copied' : 'Couldn’t copy')}>Copy CSV</button>
         </div>
         {copied && <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400" role="status">{copied}</p>}
       </section>

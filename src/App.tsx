@@ -17,6 +17,7 @@ import Settings from './pages/Settings'
 import Library from './pages/Library'
 import Plans from './pages/Plans'
 import PlanEdit from './pages/PlanEdit'
+import PlanImport from './pages/PlanImport'
 import PublicRoast from './pages/PublicRoast'
 import PublicShell from './components/PublicShell'
 
@@ -66,6 +67,7 @@ function Gate() {
         <Route path="/library/:id" element={<PublicRoast />} />
         <Route path="/plans" element={<Plans />} />
         <Route path="/plans/new" element={<PlanEdit />} />
+        <Route path="/plans/import" element={<PlanImport />} />
         <Route path="/plans/:id" element={<PlanEdit />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,8 +5,9 @@ import { findOrigin } from '../knowledge/origins'
 import { findProcess } from '../knowledge/processes'
 import { findFlavour } from '../knowledge/flavours'
 import { findLevel } from '../knowledge/roasting'
-import { findPlan, type Plan } from '../knowledge/gene'
-import { describeSteps, describeTargets } from './plans'
+import { findPlan, planDropAt, planSetpointAt, planTargetAt, type Plan } from '../knowledge/gene'
+import { describeSteps, describeTargets, planDataFromRoast, planFromRow } from './plans'
+import { PLAN_CSV_SPEC, planToCsv } from './planCsv'
 import { adviseTasting, type HistoryEntry } from './advice'
 
 const eventNames: Record<string, string> = {
@@ -50,7 +51,7 @@ export function roastSummaryText(roast: Roast, unit: Unit, n?: number, plans: Pl
     roast.batch_g && `- Batch: ${roast.batch_g} g green${roast.roasted_g ? ` → ${roast.roasted_g} g roasted` : ''}${m.weightLossPct != null ? ` (weight loss ${m.weightLossPct.toFixed(1)}%)` : ''}`,
     roast.preheat_c && `- Preheat: ${fmtTemp(roast.preheat_c, unit)}`,
     roast.ambient_c != null && `- Room temperature: ${fmtTemp(roast.ambient_c, unit)}`,
-    plan && `- Plan: ${plan.name}${plan.mine ? ` (my own: ${[describeSteps(plan, unit), describeTargets(plan)].filter(Boolean).join('; ')})` : ''}`,
+    plan && `- Plan: ${plan.name} (details below)`,
     roast.brew && `- Roasted for: ${roast.brew}`,
     roast.target_level && `- Target level: ${findLevel(roast.target_level)?.name ?? roast.target_level}`,
     roast.level && `- Level judged at the end: ${findLevel(roast.level)?.name ?? roast.level}`,
@@ -63,8 +64,10 @@ export function roastSummaryText(roast: Roast, unit: Unit, n?: number, plans: Pl
   return lines.filter(Boolean).join('\n')
 }
 
-export function readingsCsv(roast: Roast, unit: Unit): string {
-  const rows = [`time_s,time,display_${unit},set_${unit},event`]
+/** The readings as CSV. With a plan, its target display and set temperature sit alongside. */
+export function readingsCsv(roast: Roast, unit: Unit, plan?: Plan | null): string {
+  const fcS = computeMetrics(roast).fcS
+  const rows = [`time_s,time,display_${unit},set_${unit},${plan ? `plan_display_${unit},plan_set_${unit},` : ''}event`]
   const points = new Map<number, { c?: number; ev: string[] }>()
   for (const r of roast.readings) points.set(r.t, { ...(points.get(r.t) ?? { ev: [] }), c: r.c })
   for (const s of roast.setpoints) points.set(s.t, points.get(s.t) ?? { ev: [] })
@@ -76,7 +79,13 @@ export function readingsCsv(roast: Roast, unit: Unit): string {
   for (const t of [...points.keys()].sort((a, b) => a - b)) {
     const p = points.get(t)!
     const set = setpointAt(roast.setpoints, t)
-    rows.push([Math.round(t), fmtTime(t), p.c != null ? tempIn(p.c, unit) : '', set != null ? tempIn(set, unit) : '', csvCell(p.ev.join('; '))].join(','))
+    const planCols: (string | number)[] = []
+    if (plan) {
+      const target = planTargetAt(plan, t)
+      const planSet = planSetpointAt(plan, t, fcS)
+      planCols.push(target != null ? tempIn(target, unit) : '', planSet != null ? tempIn(planSet, unit) : '')
+    }
+    rows.push([Math.round(t), fmtTime(t), p.c != null ? tempIn(p.c, unit) : '', set != null ? tempIn(set, unit) : '', ...planCols, csvCell(p.ev.join('; '))].join(','))
   }
   return rows.join('\n')
 }
@@ -98,9 +107,45 @@ export function tastingText(t: Tasting, roast: Roast): string {
     .join('\n')
 }
 
+/** Planned vs actual times, for the plan a roast was made with. */
+export function planVsActual(plan: Plan, roast: Roast): string[] {
+  const m = computeMetrics(roast)
+  const diff = (planned: number | null | undefined, actual: number | null) => {
+    if (planned == null) return null
+    if (actual == null) return `planned ${fmtTime(planned)}, not logged`
+    const d = Math.round(actual - planned)
+    return `planned ${fmtTime(planned)}, actual ${fmtTime(actual)} (${d === 0 ? 'on time' : `${Math.abs(d)} s ${d > 0 ? 'later' : 'earlier'}`})`
+  }
+  const lines: string[] = []
+  const y = diff(plan.targets?.yellow_s, m.yellowS)
+  if (y) lines.push(`- Yellow: ${y}`)
+  const f = diff(plan.targets?.fc_s, m.fcS)
+  if (f) lines.push(`- First crack: ${f}`)
+  const coolPlanned = planDropAt(plan, null)
+  const coolForRealFc = planDropAt(plan, m.fcS)
+  const coolTarget = coolForRealFc ?? coolPlanned
+  if (coolTarget != null) {
+    const moved = coolPlanned != null && coolForRealFc != null && coolPlanned !== coolForRealFc
+    const d = m.dropS != null ? Math.round(m.dropS - coolTarget) : null
+    const actual = m.dropS == null ? 'not logged' : `actual ${fmtTime(m.dropS)} (${d === 0 ? 'on time' : `${Math.abs(d!)} s ${d! > 0 ? 'later' : 'earlier'}`})`
+    lines.push(`- Cool: planned ${fmtTime(coolTarget)}${moved ? ` (moved from ${fmtTime(coolPlanned)} to follow the real first crack)` : ''}, ${actual}`)
+  }
+  return lines
+}
+
 /** Everything about one roast, written so it can be pasted into a new Claude chat. */
-export function roastForClaude(opts: { roast: Roast; bean: Bean | null; tastings: Tasting[]; history: HistoryEntry[]; unit: Unit; n?: number; plans?: Plan[] }): string {
-  const { roast, bean, tastings, history, unit, n, plans = [] } = opts
+export function roastForClaude(opts: {
+  roast: Roast
+  bean: Bean | null
+  tastings: Tasting[]
+  history: HistoryEntry[]
+  unit: Unit
+  n?: number
+  plans?: Plan[]
+  wantPlan?: boolean // ask Claude for a plan in the importable format
+}): string {
+  const { roast, bean, tastings, history, unit, n, plans = [], wantPlan = false } = opts
+  const plan = findPlan(roast.plan_id, plans) ?? null
   const out: string[] = []
   out.push('# Home coffee roast: please help me improve the next one')
   out.push('')
@@ -123,11 +168,27 @@ export function roastForClaude(opts: { roast: Roast; bean: Bean | null; tastings
   out.push('## This roast')
   out.push(roastSummaryText(roast, unit, n, plans))
   out.push('')
-  out.push(`### Readings (${unit === 'C' ? '°C' : '°F'})`)
+  out.push(`### Readings (${unit === 'C' ? '°C' : '°F'})${plan ? ', with the plan’s target display and set temperature alongside' : ''}`)
   out.push('```csv')
-  out.push(readingsCsv(roast, unit))
+  out.push(readingsCsv(roast, unit, plan))
   out.push('```')
   out.push('')
+  if (plan) {
+    out.push('## The plan I roasted with')
+    out.push(`- ${plan.name}${plan.mine ? ' (my own plan, as it is saved now)' : ` (a published Gene profile: ${plan.forWhat})`}`)
+    const steps = describeSteps(plan, unit)
+    if (steps) out.push(`- Set temperatures: ${steps}`)
+    const targets = describeTargets(plan)
+    if (targets) out.push(`- Targets: ${targets}`)
+    if (plan.note) out.push(`- Plan notes: ${plan.note}`)
+    out.push(...planVsActual(plan, roast))
+    out.push('')
+    out.push('The full plan, including its target curve:')
+    out.push('```csv')
+    out.push(planToCsv(plan, unit, bean?.name))
+    out.push('```')
+    out.push('')
+  }
   if (tastings.length) {
     out.push('## How it tasted')
     for (const t of tastings) out.push(tastingText(t, roast))
@@ -157,6 +218,35 @@ export function roastForClaude(opts: { roast: Roast; bean: Bean | null; tastings
   out.push(
     'Please research this origin/region/process and tell me what flavours it can give at its best, what my tasting notes say about this roast, and exactly what to change on my next roast on the Gene (set temperatures, when to change them, and when to press cool, in mm:ss). Change one or two things at most, and tell me what to look for while it roasts.',
   )
+  if (wantPlan) {
+    // Your own plan (already shown above) has a curve and targets; otherwise write this roast
+    // as a plan, so the example carries your real times and curve.
+    const example = plan?.mine
+      ? plan
+      : planFromRow({ id: 'example', name: 'This roast as a plan', bean_id: null, data: planDataFromRoast(roast), created_at: roast.roasted_at, updated_at: roast.roasted_at })
+    out.push('')
+    out.push('## Please also give me a roast plan I can import')
+    out.push(
+      [
+        'After your advice, write the complete plan for my next roast in the format below, so I can import it into my roasting app (Roastery → Plans → Import from Claude).',
+        '- Put the whole plan in ONE ```csv code block, starting with the roastery_plan,v1 line. If you can make files, also give it to me as a downloadable .csv file.',
+        `- Use °${unit} (unit row), times as m:ss from loading the beans, and the Gene’s DISPLAY temperatures, not bean temperatures.`,
+        '- Base the times and the curve on my actual readings above (my machine, my power supply). Only change what you want me to do differently, and say above the block what changed and why.',
+        '- Include curve rows every 30–60 s from 0:00 to the planned cool time, so I can see during the roast whether I’m ahead or behind.',
+        '- Prefer set_at_fc and cool_after_fc for anything around first crack, because first crack moves from roast to roast.',
+      ].join('\n'),
+    )
+    out.push('')
+    out.push(PLAN_CSV_SPEC)
+    out.push('')
+    if (plan?.mine) out.push('Example: the plan I used for this roast, shown above, is in this format.')
+    else {
+      out.push('Example: this roast written as a plan, in that format:')
+      out.push('```csv')
+      out.push(planToCsv(example, unit, bean?.name))
+      out.push('```')
+    }
+  }
   return out.join('\n')
 }
 

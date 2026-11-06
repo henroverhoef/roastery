@@ -55,7 +55,11 @@ export default function Plans() {
           {builtIn.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <Link to="/plans/new" className="btn-secondary w-full">A blank plan</Link>
-        <p className="muted text-xs">Tip: after tasting a roast, its page can turn the app’s suggestion (e.g. “cool 55 s later”) straight into a plan for the next one.</p>
+        <Link to="/plans/import" className="btn-secondary w-full">Import a plan from Claude</Link>
+        <p className="muted text-xs">
+          Tip: after tasting a roast, its page can turn the app’s suggestion (e.g. “cool 55 s later”) straight into a plan for the next one. Or tick “ask for a roast plan” when
+          you copy it for Claude, and import Claude’s plan here.
+        </p>
       </div>
     </div>
   )

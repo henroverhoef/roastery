@@ -9,6 +9,8 @@ import { emptyPlanData, planAsCurve, planDataFromRoast, planFromRow, thinCurve, 
 import { computeMetrics } from '../lib/metrics'
 import { fmtDate, fmtPct, fmtTime, parseTime, tempIn, toC, uid } from '../lib/format'
 import type { Roast, Unit } from '../lib/types'
+import { planToCsv } from '../lib/planCsv'
+import { copyText } from '../lib/export'
 
 export default function PlanEdit() {
   const { id } = useParams()
@@ -89,6 +91,7 @@ function Editor({ initial, isNew }: { initial: PlanRow; isNew: boolean }) {
   const [fc, setFc] = useState(d.targets.fc_s != null ? fmtTime(d.targets.fc_s) : '')
   const [dropMode, setDropMode] = useState<PlanDrop['mode']>(d.drop?.mode ?? 'dev')
   const [dropValue, setDropValue] = useState(d.drop ? (d.drop.mode === 'dtr' ? String(Math.round(d.drop.value * 1000) / 10) : fmtTime(d.drop.value)) : '')
+  const [copied, setCopied] = useState<string | null>(null)
   const [points, setPoints] = useState<PointRow[]>(() => d.curve.map((p) => ({ time: fmtTime(p.t), temp: tIn(p.c) })))
 
   const data: PlanData = useMemo(() => {
@@ -293,6 +296,13 @@ function Editor({ initial, isNew }: { initial: PlanRow; isNew: boolean }) {
         <button className="btn-primary flex-1" disabled={noSet} onClick={() => save(true)}>Save &amp; roast with it</button>
         <button className="btn-secondary" disabled={noSet} onClick={() => save(false)}>Save</button>
       </div>
+      <button
+        className="btn-ghost w-full text-sm"
+        onClick={async () => setCopied((await copyText(planToCsv(plan, unit, beans.find((b) => b.id === beanId)?.name))) ? 'Plan copied as CSV' : 'Couldn’t copy')}
+      >
+        Copy this plan as CSV (to share or give to Claude)
+      </button>
+      {copied && <p className="text-center text-sm text-emerald-700 dark:text-emerald-400" role="status">{copied}</p>}
       {!isNew && (
         <button
           className="btn-ghost w-full text-red-700 dark:text-red-400"
