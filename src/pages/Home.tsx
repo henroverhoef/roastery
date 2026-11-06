@@ -38,7 +38,10 @@ export default function Home() {
       {liveRoast ? (
         <Link to="/roast/live" className="btn-primary w-full py-4 text-lg">🔥 Back to the roast in progress</Link>
       ) : (
-        <Link to="/roast/new" className="btn-primary w-full py-4 text-lg">Start a roast</Link>
+        <>
+          <Link to="/roast/new" className="btn-primary w-full py-4 text-lg">Start a roast</Link>
+          <Link to="/plans" className="btn-secondary -mt-3 w-full">My roast plans</Link>
+        </>
       )}
 
       {untasted.length > 0 && (

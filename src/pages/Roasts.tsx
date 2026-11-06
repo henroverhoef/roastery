@@ -15,7 +15,15 @@ export default function Roasts() {
   const used = beans.filter((b) => roasts.some((r) => r.bean_id === b.id))
   return (
     <div className="page">
-      <Header title="Roasts" action={<Link to="/roast/new" className="btn-primary">+ Roast</Link>} />
+      <Header
+        title="Roasts"
+        action={
+          <div className="flex gap-2">
+            <Link to="/plans" className="btn-secondary px-3">Plans</Link>
+            <Link to="/roast/new" className="btn-primary">+ Roast</Link>
+          </div>
+        }
+      />
       {used.length > 1 && (
         <select className="input mb-3" value={bean} onChange={(e) => setBean(e.target.value)} aria-label="Filter by bean">
           <option value="">All beans</option>

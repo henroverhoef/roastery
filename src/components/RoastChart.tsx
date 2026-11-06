@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
-import type { Roast, Unit } from '../lib/types'
+import type { Roast, RoastEvent, Unit } from '../lib/types'
 import { computeMetrics, rateOfRise, setpointAt, tempAt } from '../lib/metrics'
 import { deltaIn, fmtTime, tempIn } from '../lib/format'
 
@@ -14,6 +14,10 @@ interface Props {
   height?: number
   rorHeight?: number
   ghostSetpoints?: { t: number; c: number }[] // a plan's set temperatures, drawn faintly
+  target?: { readings: { t: number; c: number }[]; events: RoastEvent[] } | null // a plan's target curve and milestones
+  targetLabel?: string
+  legendNames?: { display?: string; set?: string } // legend names for this roast's own lines
+  shortLegend?: boolean // one-line legend for the live screen
 }
 
 const PAD = { l: 34, r: 12, t: 32, b: 20 }
@@ -27,7 +31,7 @@ function niceStep(range: number, target: number) {
 
 const eventLabel: Record<string, string> = { yellow: 'Yellow', fc_start: '1C', fc_end: '1C end', sc_start: '2C', drop: 'Cool' }
 
-export default function RoastChart({ roast, reference, referenceLabel, unit, nowS, height = 220, rorHeight = 84, ghostSetpoints }: Props) {
+export default function RoastChart({ roast, reference, referenceLabel, unit, nowS, height = 220, rorHeight = 84, ghostSetpoints, target, targetLabel = 'Plan', legendNames, shortLegend }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(340)
   const [hoverT, setHoverT] = useState<number | null>(null)
@@ -44,6 +48,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
   const refM = useMemo(() => (reference ? computeMetrics(reference) : null), [reference])
   const ror = useMemo(() => rateOfRise(roast.readings), [roast.readings])
   const refRor = useMemo(() => (reference ? rateOfRise(reference.readings) : []), [reference])
+  const targetRor = useMemo(() => (target ? rateOfRise(target.readings) : []), [target])
 
   const u = (c: number) => (unit === 'F' ? (c * 9) / 5 + 32 : c)
 
@@ -55,6 +60,8 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
     refM?.totalS ?? 0,
     ...roast.readings.map((r) => r.t),
     ...(reference?.readings.map((r) => r.t) ?? []),
+    ...(target?.readings.map((r) => r.t) ?? []),
+    ...(target?.events.map((e) => e.t) ?? []),
   )
   const xMax = Math.ceil((lastT + 30) / 60) * 60
   const plotW = width - PAD.l - PAD.r
@@ -66,6 +73,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
     ...roast.setpoints.map((s) => u(s.c)),
     ...(reference?.readings.map((r) => u(r.c)) ?? []),
     ...(ghostSetpoints?.map((s) => u(s.c)) ?? []),
+    ...(target?.readings.map((r) => u(r.c)) ?? []),
   ]
   const tMin0 = temps.length ? Math.min(...temps) : u(60)
   const tMax0 = temps.length ? Math.max(...temps) : u(250)
@@ -91,7 +99,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
   const plotH = height - PAD.t - PAD.b
   const y = (v: number) => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH
 
-  const rorVals = [...ror.map((p) => deltaIn(p.ror, unit)), ...refRor.map((p) => deltaIn(p.ror, unit))]
+  const rorVals = [...ror.map((p) => deltaIn(p.ror, unit)), ...refRor.map((p) => deltaIn(p.ror, unit)), ...targetRor.map((p) => deltaIn(p.ror, unit))]
   const rMax0 = rorVals.length ? Math.max(...rorVals, 5) : 20
   const rMin0 = rorVals.length ? Math.min(...rorVals, 0) : 0
   const rStep = niceStep(Math.max(rMax0 - rMin0, 5), 3)
@@ -114,6 +122,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
     pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${yy(p.v).toFixed(1)}`).join('')
   const tempPath = line(sorted.map((r) => ({ t: r.t, v: u(r.c) })), y)
   const refPath = reference ? line([...reference.readings].sort((a, b) => a.t - b.t).map((r) => ({ t: r.t, v: u(r.c) })), y) : ''
+  const targetPath = target?.readings.length ? line([...target.readings].sort((a, b) => a.t - b.t).map((r) => ({ t: r.t, v: u(r.c) })), y) : ''
   const stepPath = (sps: { t: number; c: number }[], end: number) => {
     const s = [...sps].sort((a, b) => a.t - b.t)
     if (!s.length) return ''
@@ -126,6 +135,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
   const ghostPath = ghostSetpoints?.length ? stepPath(ghostSetpoints, xMax) : ''
   const rorPath = line(ror.map((p) => ({ t: p.t, v: deltaIn(p.ror, unit) })), ry)
   const refRorPath = line(refRor.map((p) => ({ t: p.t, v: deltaIn(p.ror, unit) })), ry)
+  const targetRorPath = line(targetRor.map((p) => ({ t: p.t, v: deltaIn(p.ror, unit) })), ry)
 
   // ——— phases ———
   const end = m.dropS ?? nowS ?? m.totalS
@@ -156,6 +166,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
           set: setpointAt(roast.setpoints, hoverT),
           ror: ror.length ? ror.reduce((a, b) => (Math.abs(b.t - hoverT) < Math.abs(a.t - hoverT) ? b : a)).ror : null,
           ref: reference ? tempAt(reference.readings, hoverT) : null,
+          plan: target?.readings.length ? tempAt(target.readings, hoverT) : null,
         }
 
   const summary = `Roast curve: ${sorted.length} readings${m.fcS != null ? `, first crack at ${fmtTime(m.fcS)}` : ''}${m.dropS != null ? `, cool at ${fmtTime(m.dropS)}` : ''}${last ? `, last reading ${tempIn(last.c, unit)}°${unit}` : ''}.`
@@ -163,10 +174,11 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
   return (
     <div ref={wrap} className="viz relative w-full select-none">
       <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--ink-2)]">
-        <span className="inline-flex items-center gap-1"><i className="inline-block h-0.5 w-4 rounded bg-[var(--series-1)]" />Display (exhaust)</span>
-        <span className="inline-flex items-center gap-1"><i className="inline-block h-0 w-4 border-t-2 border-dashed border-[var(--series-2)]" />Set temp</span>
+        <span className="inline-flex items-center gap-1"><i className="inline-block h-0.5 w-4 rounded bg-[var(--series-1)]" />{legendNames?.display ?? (shortLegend ? 'Display' : 'Display (exhaust)')}</span>
+        <span className="inline-flex items-center gap-1"><i className="inline-block h-0 w-4 border-t-2 border-dashed border-[var(--series-2)]" />{legendNames?.set ?? (shortLegend ? 'Set' : 'Set temp')}</span>
         {reference && <span className="inline-flex items-center gap-1"><i className="inline-block h-0.5 w-4 rounded bg-[var(--ref)]" />{referenceLabel ?? 'Reference'}</span>}
-        {ghostPath && <span className="inline-flex items-center gap-1"><i className="inline-block h-0 w-4 border-t-2 border-dotted border-[var(--ink-muted)]" />Plan</span>}
+        {targetPath && <span className="inline-flex items-center gap-1"><i className="inline-block h-0 w-4 border-t-2 border-dotted border-[var(--series-1)] opacity-70" />{targetLabel}</span>}
+        {ghostPath && <span className="inline-flex items-center gap-1"><i className="inline-block h-0 w-4 border-t-2 border-dashed border-[var(--series-2)] opacity-50" />{targetLabel} set{shortLegend ? '' : ' temp'}</span>}
       </div>
       <svg
         width={width}
@@ -217,7 +229,13 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
           </circle>
         ))}
 
-        {ghostPath && <path d={ghostPath} fill="none" stroke="var(--ink-muted)" strokeWidth={1.5} strokeDasharray="2 3" />}
+        {ghostPath && <path d={ghostPath} fill="none" stroke="var(--series-2)" strokeWidth={1.5} strokeDasharray="5 4" opacity={0.45} />}
+        {targetPath && <path d={targetPath} fill="none" stroke="var(--series-1)" strokeWidth={2.5} strokeDasharray="0.1 5" strokeLinecap="round" opacity={0.7} />}
+        {target?.events.map((e, i) => (
+          <path key={`tm${i}`} d={`M${x(e.t) - 4},${padT} L${x(e.t) + 4},${padT} L${x(e.t)},${padT + 7} Z`} fill="var(--series-1)" opacity={0.6}>
+            <title>{`${targetLabel}: ${eventLabel[e.type] ?? e.type} at ${fmtTime(e.t)}`}</title>
+          </path>
+        ))}
         {refPath && <path d={refPath} fill="none" stroke="var(--ref)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.75} />}
         {setPath && <path d={setPath} fill="none" stroke="var(--series-2)" strokeWidth={2} strokeDasharray="5 4" />}
         {tempPath && <path d={tempPath} fill="none" stroke="var(--series-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
@@ -246,6 +264,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
           <line key={i} x1={x(e.t)} x2={x(e.t)} y1={8} y2={8 + rPlotH} stroke="var(--ink-muted)" strokeWidth={1} />
         ))}
         {refRorPath && <path d={refRorPath} fill="none" stroke="var(--ref)" strokeWidth={2} opacity={0.75} strokeLinejoin="round" />}
+        {targetRorPath && <path d={targetRorPath} fill="none" stroke="var(--series-1)" strokeWidth={2.5} strokeDasharray="0.1 5" strokeLinecap="round" opacity={0.7} />}
         {rorPath && <path d={rorPath} fill="none" stroke="var(--series-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
         {xTicks.map((s) => (
           <text key={s} x={x(s)} y={rorHeight - 5} textAnchor="middle" className="fill-[var(--ink-muted)] text-[10px] tabular-nums">{s / 60}</text>
@@ -264,6 +283,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
           {hv.set != null && <div className="tabular-nums">Set {tempIn(hv.set, unit)}°{unit}</div>}
           {hv.ror != null && <div className="tabular-nums">RoR {deltaIn(hv.ror, unit).toFixed(1)}°/min</div>}
           {hv.ref != null && <div className="tabular-nums text-[var(--ink-2)]">{referenceLabel ?? 'Ref'} {tempIn(hv.ref, unit)}°{unit}</div>}
+          {hv.plan != null && <div className="tabular-nums text-[var(--ink-2)]">{targetLabel} {tempIn(hv.plan, unit)}°{unit}</div>}
         </div>
       )}
     </div>

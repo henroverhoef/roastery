@@ -22,6 +22,13 @@ A roast log and coach for the **Gene Café CBR-101** home roaster. Log the Gene�
   - Shows your best roast of the same bean as a reference.
   - Adds origin, process and variety notes, a weight-loss check, and a warning if you tasted it too fresh.
 - **Copy for Claude**: one tap copies the roast, bean, readings (CSV), tastings, your other roasts of that bean and the app’s suggestion, ready to paste into a new Claude chat for deeper research. There’s also CSV export of one roast or all roasts.
+- **My plans**: design a roast before you start. A plan holds:
+  - set-temperature changes (at the start, at a time, or at first crack + a few seconds);
+  - target times for yellow and first crack;
+  - when to press cool (a time after first crack, a fixed time, or a DTR %);
+  - optionally a target curve, previewed as a graph while you edit.
+
+  Start one from scratch, from any of your roasts, from a published Gene profile, or with one tap from the advice on a tasted roast (“Plan the next roast: cool at 11:53”). While roasting, the plan’s curve and milestones are drawn behind yours, the screen shows how far over or under the plan you are, prompts each dial change, and counts down to the planned cool time (moved to match your real first crack).
 - **Public library**: share any roast so other Gene roasters can see its curve, timings and how it tasted. Anyone can browse the library, even without an account: search by bean, region, roaster or flavour, and filter by origin and process.
   - On a shared roast you can **roast along** (its curve is drawn behind yours on the live screen), compare it with one of your own roasts, or add its bean to your list.
   - Sharing makes a copy: the curve, events, set temperatures, weights and level; the bean’s origin, region, farm, altitude, variety, process, grade, harvest, supplier and seller’s notes; your tasting ratings, tags and sliders. Your email and the price you paid are never shared, and written notes only if you tick the box. You choose the name shown.
@@ -34,6 +41,7 @@ A roast log and coach for the **Gene Café CBR-101** home roaster. Log the Gene�
 |---|---|
 | Database | **Done.** Four tables (`roast_beans`, `roast_roasts`, `roast_tastings`, `roast_settings`) in the existing **worship-sets** Supabase project (`ydisjxcetvvatokvucvr`), because the free plan allows two projects. They are private per person via Row Level Security and don’t touch the worship tables. Schema: `supabase/migrations/0001_roastery.sql`. |
 | Public library | **Done.** Table `roast_public` (`supabase/migrations/0002_public_library.sql`): anyone can read it; people can only add, change or remove shares of their own roasts. |
+| My plans | **Done.** Table `roast_plans` (`supabase/migrations/0003_roast_plans.sql`), private to each person like roasts. |
 | Login | **Done.** Same email and password as Worship Sets. Your roasts are only visible to you, unless you share one. |
 | Hosting | **To do (2 min):** see below. |
 
@@ -70,5 +78,6 @@ npm run build
 - `src/knowledge/`: the researched knowledge base (`gene.ts`, `roasting.ts`, `origins.ts`, `processes.ts`, `varieties.ts`, `flavours.ts`). Every entry cites ids from `sources.ts`; a test checks that every cited source exists.
 - `src/lib/advice.ts`: the advice rules. `src/lib/metrics.ts`: phases, DTR, rate of rise. `src/lib/export.ts`: the Claude text and CSVs.
 - `src/data/store.tsx`: offline-first store. Changes are saved on the device and queued, then uploaded in order when there’s a connection.
+- `src/lib/plans.ts` and the plan helpers in `src/knowledge/gene.ts`: your own plans (schedule, targets, cool time, curve) and turning a roast into a plan.
 - `src/lib/public.ts`: the public library. It builds the shared snapshot (and decides what is never shared) and fetches the library.
 - The Supabase URL and publishable key in `.env.production` are public by design; Row Level Security protects the data.

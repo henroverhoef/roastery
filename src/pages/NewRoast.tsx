@@ -13,6 +13,7 @@ import { computeMetrics } from '../lib/metrics'
 import { fmtDate, fmtPct, fmtTime, tempIn, toC, uid } from '../lib/format'
 import type { Bean, Roast } from '../lib/types'
 import { fetchPublicRoast, publicRoast, type PublicRow } from '../lib/public'
+import { describeSteps, describeTargets } from '../lib/plans'
 
 function suggestPlan(bean: Bean | undefined): { plan: Plan; why: string } | null {
   const origin = findOrigin(bean?.country)
@@ -26,7 +27,7 @@ function suggestPlan(bean: Bean | undefined): { plan: Plan; why: string } | null
 }
 
 export default function NewRoast() {
-  const { beans, roasts, tastings, settings } = useStore()
+  const { beans, roasts, tastings, settings, myPlans } = useStore()
   const liveRoast = useLive()
   const numbers = useRoastNumbers()
   const navigate = useNavigate()
@@ -62,14 +63,15 @@ export default function NewRoast() {
   const followM = followCurve ? computeMetrics(followCurve) : null
 
   const [refId, setRefId] = useState<string | null>(null)
-  const [planId, setPlanId] = useState<string | null>(null)
-  const [touched, setTouched] = useState(false)
+  const planParam = params.get('plan')
+  const [planId, setPlanId] = useState<string | null>(planParam)
+  const [touched, setTouched] = useState(!!planParam)
   const effectiveRef = touched ? refId : followId ? null : (bestRef?.id ?? null)
   const effectivePlan = touched ? planId : bestRef || followId ? null : (suggestion?.plan.id ?? null)
-  const plan = findPlan(effectivePlan)
+  const plan = findPlan(effectivePlan, myPlans)
   const reference = roasts.find((r) => r.id === effectiveRef)
 
-  const firstSet = plan?.steps[0]?.c ?? reference?.setpoints[0]?.c ?? followCurve?.setpoints[0]?.c ?? null
+  const firstSet = plan?.steps.find((s) => s.when === 'start')?.c ?? reference?.setpoints[0]?.c ?? followCurve?.setpoints[0]?.c ?? null
   const [batch, setBatch] = useState('')
   const [setTemp, setSetTemp] = useState('')
   const [preheat, setPreheat] = useState('')
@@ -80,7 +82,7 @@ export default function NewRoast() {
   if (liveRoast) return <Navigate to="/roast/live" replace />
 
   const defaultBatch = plan?.batch_g ?? reference?.batch_g ?? followCurve?.batch_g ?? (process?.id === 'natural' ? 200 : settings.batch_g)
-  const defaultLevel = targetLevelId({ target_level: null } as Roast, origin) ?? ''
+  const defaultLevel = plan?.target_level ?? targetLevelId({ target_level: null } as Roast, origin) ?? ''
 
   function start() {
     const now = new Date().toISOString()
@@ -111,7 +113,7 @@ export default function NewRoast() {
       updated_at: now,
     }
     const label = follow ? `${follow.display_name}’s roast` : null
-    live.start(roast, Date.now(), follow && followCurve && label ? { label, curve: followCurve } : undefined)
+    live.start(roast, Date.now(), follow && followCurve && label ? { label, curve: followCurve } : undefined, plan)
     navigate('/roast/live')
   }
 
@@ -179,15 +181,34 @@ export default function NewRoast() {
         <Field label="Starting plan">
           <select className="input" value={effectivePlan ?? ''} onChange={(e) => { setTouched(true); setPlanId(e.target.value || null); setRefId(effectiveRef) }}>
             <option value="">None: I’ll set the Gene myself</option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-                {p.id === suggestion?.plan.id ? ' (suggested)' : ''}
-              </option>
-            ))}
+            {myPlans.length > 0 && (
+              <optgroup label="My plans">
+                {myPlans.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Published Gene profiles">
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.id === suggestion?.plan.id ? ' (suggested)' : ''}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </Field>
-        {plan && (
+        <Link to={`/plans/new${bean ? `?bean=${bean.id}` : ''}`} className="text-sm text-amber-700 underline dark:text-amber-400">+ Design your own plan</Link>
+        {plan?.mine && (
+          <div className="rounded-xl bg-sky-50 p-3 text-sm dark:bg-sky-950/40">
+            <p>{describeSteps(plan, unit) || 'No set temperatures in this plan.'}</p>
+            {describeTargets(plan) && <p className="mt-1 text-stone-600 dark:text-stone-400">Targets: {describeTargets(plan)}</p>}
+            {plan.note && <p className="mt-1 whitespace-pre-wrap">{plan.note}</p>}
+            {plan.preheat_c != null && <p className="mt-2">{preheatHowTo}</p>}
+            <Link to={`/plans/${plan.id}`} className="mt-2 inline-block text-amber-700 underline dark:text-amber-400">Edit this plan</Link>
+          </div>
+        )}
+        {plan && !plan.mine && (
           <div className="rounded-xl bg-amber-50 p-3 text-sm dark:bg-amber-950/40">
             <p>{plan.note}</p>
             {plan.preheat_c != null && <p className="mt-2">{preheatHowTo}</p>}

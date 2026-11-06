@@ -6,7 +6,8 @@ import { computeMetrics, dropForDtr, eventTime, setpointAt } from '../lib/metric
 import { fmtTemp, fmtTime, tempIn, toC } from '../lib/format'
 import RoastChart from '../components/RoastChart'
 import { Chips, SourceLinks, numOrNull } from '../components/ui'
-import { findPlan, nextPlanStep, planSetpointAt } from '../knowledge/gene'
+import { findPlan, nextPlanStep, planDropAt, planSetpointAt, planSetpoints, planTargetAt } from '../knowledge/gene'
+import { describeTargets, planAsCurve } from '../lib/plans'
 import { appearanceTags, colourStages, DTR_HIGH, DTR_LOW, DTR_MID, roastLevels, smells, lossBandFor } from '../knowledge/roasting'
 import type { EventType, Unit } from '../lib/types'
 
@@ -69,7 +70,7 @@ const crackButtons: { type: EventType; label: string }[] = [
 
 export default function LiveRoast() {
   const s = useLive()
-  const { roasts, beans, settings, saveRoast } = useStore()
+  const { roasts, beans, settings, saveRoast, myPlans } = useStore()
   const numbers = useRoastNumbers()
   const navigate = useNavigate()
   const [now, setNow] = useState(Date.now())
@@ -112,7 +113,7 @@ export default function LiveRoast() {
   const reference = ownRef ?? s.follow?.curve ?? null
   const refLabel = ownRef ? `#${numbers.get(ownRef.id)}` : (s.follow?.label ?? null)
   const refM = reference ? computeMetrics(reference) : null
-  const plan = findPlan(roast.plan_id)
+  const plan = s.plan ?? findPlan(roast.plan_id, myPlans)
   const roastT = dropT ?? t
   const m = computeMetrics(roast, dropT == null ? t : undefined)
   const lastReading = [...roast.readings].sort((a, b) => a.t - b.t).at(-1) ?? null
@@ -133,11 +134,13 @@ export default function LiveRoast() {
   const planNow = plan ? planSetpointAt(plan, t, m.fcS) : null
   const next = plan ? nextPlanStep(plan, t, m.fcS) : null
   const planDue = plan && planNow != null && currentSet != null && Math.abs(planNow - currentSet) >= 0.5 && dropT == null
-  const ghost = plan
-    ? plan.steps
-        .map((st) => ({ t: st.when === 'start' ? 0 : m.fcS != null ? m.fcS + (st.offset_s ?? 0) : null, c: st.c }))
-        .filter((g): g is { t: number; c: number } => g.t != null)
-    : undefined
+  const ghost = plan ? planSetpoints(plan, m.fcS) : undefined
+  const planCurve = plan ? planAsCurve(plan, m.fcS) : null
+  const target = planCurve && (planCurve.readings.length || planCurve.events.length) ? { readings: planCurve.readings, events: planCurve.events } : null
+  const planHere = plan && lastReading ? planTargetAt(plan, lastReading.t) : null
+  const pace = planHere != null && lastReading ? lastReading.c - planHere : null
+  const planDrop = plan ? planDropAt(plan, m.fcS) : null
+  const planTargets = plan ? describeTargets(plan) : ''
 
   const logEvent = (type: EventType, value?: string, note?: string) => {
     unlockAudio()
@@ -174,6 +177,11 @@ export default function LiveRoast() {
             {lastReading ? `${fmtTime(sinceReading)} ago` : 'no reading yet'}
           </div>
           <div className="text-stone-500">Set {fmtTemp(currentSet, unit)}</div>
+          {planHere != null && pace != null && (
+            <div className={Math.abs(pace) <= 1 ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-700 dark:text-stone-300'}>
+              Plan {fmtTemp(planHere, unit)} · {Math.abs(pace) <= 1 ? 'on plan' : `${Math.round(Math.abs(unit === 'F' ? (pace * 9) / 5 : pace))}° ${pace < 0 ? 'under' : 'over'}`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -190,7 +198,7 @@ export default function LiveRoast() {
             Plan: {next.at == null ? `at first crack${next.step.offset_s ? ` + ${next.step.offset_s} s` : ''}` : `at ${fmtTime(next.at)}`} turn to <b>{fmtTemp(next.step.c, unit)}</b>.
           </div>
         )}
-        {m.fcS != null && dropT == null && <DropTargets fcS={m.fcS} t={t} refDrop={refM?.dropS ?? null} refDev={refM?.devS ?? null} refLabel={refLabel} />}
+        {m.fcS != null && dropT == null && <DropTargets fcS={m.fcS} t={t} refDrop={refM?.dropS ?? null} refDev={refM?.devS ?? null} refLabel={refLabel} planDrop={planDrop} />}
         {roast.preheat_c != null && roast.readings.length < 3 && dropT == null && (
           <div className="rounded-xl bg-sky-50 p-2.5 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
             Preheated: the display drops after loading, then climbs. Log a reading now and one at the lowest point.
@@ -198,7 +206,9 @@ export default function LiveRoast() {
         )}
         {m.fcS == null && dropT == null && (
           <div className="rounded-xl bg-stone-100 p-2.5 text-stone-700 dark:bg-stone-800 dark:text-stone-300">
-            {refM && reference ? (
+            {planTargets ? (
+              <>Plan: {planTargets}</>
+            ) : refM && reference ? (
               <>{ownRef ? 'Reference' : 'Roasting along with'} {refLabel}: yellow {fmtTime(refM.yellowS)} · first crack {fmtTime(refM.fcS)} at {fmtTemp(refM.tempAtFcC, unit)} · cool {fmtTime(refM.dropS)}</>
             ) : (
               <>At about 232 °C on the Gene, yellowing usually comes at about 4–6 min and first crack at about 9–12 min (Burman). Watch the beans: cracks are hard to hear.</>
@@ -212,7 +222,7 @@ export default function LiveRoast() {
 
       {/* chart */}
       <div className="mt-2">
-        <RoastChart roast={roast} reference={reference} referenceLabel={refLabel ?? undefined} unit={unit} nowS={dropT == null ? t : null} height={170} rorHeight={58} ghostSetpoints={ghost} />
+        <RoastChart roast={roast} reference={reference} referenceLabel={refLabel ?? undefined} unit={unit} nowS={dropT == null ? t : null} height={170} rorHeight={58} ghostSetpoints={ghost} target={target} shortLegend />
       </div>
 
       {/* events */}
@@ -328,7 +338,7 @@ export default function LiveRoast() {
   )
 }
 
-function DropTargets({ fcS, t, refDrop, refDev, refLabel }: { fcS: number; t: number; refDrop: number | null; refDev: number | null; refLabel: string | null }) {
+function DropTargets({ fcS, t, refDrop, refDev, refLabel, planDrop }: { fcS: number; t: number; refDrop: number | null; refDev: number | null; refLabel: string | null; planDrop: number | null }) {
   const targets = [
     { label: '20%', at: dropForDtr(fcS, DTR_LOW) },
     { label: '22.5%', at: dropForDtr(fcS, DTR_MID) },
@@ -336,7 +346,13 @@ function DropTargets({ fcS, t, refDrop, refDev, refLabel }: { fcS: number; t: nu
   ]
   return (
     <div className="rounded-xl bg-stone-100 p-2.5 dark:bg-stone-800">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      {planDrop != null && (
+        <div className={`mb-0.5 tabular-nums ${t >= planDrop ? 'font-bold text-red-700 dark:text-red-400' : ''}`}>
+          Plan: cool at <b>{fmtTime(planDrop)}</b>
+          {t < planDrop ? ` (in ${fmtTime(planDrop - t)})` : ' (now)'}
+        </div>
+      )}
+      <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 ${planDrop != null ? 'text-xs' : ''}`}>
         <span className="text-stone-600 dark:text-stone-400">Cool at DTR</span>
         {targets.map((x) => (
           <span key={x.label} className={`tabular-nums ${t >= x.at ? 'text-stone-400 line-through' : 'font-semibold'}`}>

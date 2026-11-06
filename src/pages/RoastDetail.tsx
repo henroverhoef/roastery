@@ -20,7 +20,7 @@ const eventNames: Record<string, string> = {
 
 export default function RoastDetail() {
   const { id } = useParams()
-  const { roasts, beans, tastings, settings, saveRoast, deleteRoast, loaded } = useStore()
+  const { roasts, beans, tastings, settings, saveRoast, deleteRoast, loaded, myPlans } = useStore()
   const numbers = useRoastNumbers()
   const navigate = useNavigate()
   const unit = settings.unit
@@ -42,7 +42,8 @@ export default function RoastDetail() {
   const compare = roasts.find((r) => r.id === (compareId || '')) ?? null
   const latest = mine[0]
   const advice = latest ? adviseTasting({ roast, bean, tasting: latest, history, unit }) : null
-  const plan = findPlan(roast.plan_id)
+  const plan = findPlan(roast.plan_id, myPlans)
+  const dropChange = advice?.items.find((i) => i.tone === 'change' && i.drop_s != null)
   const band = lossBandFor(roast.level)
 
   const flash = (msg: string) => {
@@ -121,9 +122,16 @@ export default function RoastDetail() {
         <section className="card">
           <h2 className="h2 mb-2">Next roast</h2>
           <AdviceList advice={advice} />
+          {dropChange?.drop_s != null && (
+            <Link to={`/plans/new?from=${roast.id}&drop=${dropChange.drop_s}`} className="btn-primary mt-3 w-full">
+              Plan the next roast: cool at {fmtTime(dropChange.drop_s)}
+            </Link>
+          )}
           <p className="muted mt-3 text-xs">Based on your latest tasting ({latest.tasted_on}). Change one thing at a time so you can tell what it did.</p>
         </section>
       )}
+
+      <Link to={`/plans/new?from=${roast.id}`} className="btn-secondary w-full">Make a plan from this roast</Link>
 
       <section className="card space-y-2">
         <h2 className="h2">Ask Claude</h2>
@@ -132,7 +140,7 @@ export default function RoastDetail() {
           <button
             className="btn-primary"
             onClick={async () => {
-              const ok = await copyText(roastForClaude({ roast, bean, tastings: mine, history, unit, n }))
+              const ok = await copyText(roastForClaude({ roast, bean, tastings: mine, history, unit, n, plans: myPlans }))
               flash(ok ? 'Copied: paste it into Claude' : 'Couldn’t copy')
             }}
           >

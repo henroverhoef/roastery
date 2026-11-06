@@ -5,7 +5,8 @@ import { findOrigin } from '../knowledge/origins'
 import { findProcess } from '../knowledge/processes'
 import { findFlavour } from '../knowledge/flavours'
 import { findLevel } from '../knowledge/roasting'
-import { findPlan } from '../knowledge/gene'
+import { findPlan, type Plan } from '../knowledge/gene'
+import { describeSteps, describeTargets } from './plans'
 import { adviseTasting, type HistoryEntry } from './advice'
 
 const eventNames: Record<string, string> = {
@@ -41,15 +42,15 @@ export function beanText(bean: Bean): string {
   return lines.filter(Boolean).join('\n')
 }
 
-export function roastSummaryText(roast: Roast, unit: Unit, n?: number): string {
+export function roastSummaryText(roast: Roast, unit: Unit, n?: number, plans: Plan[] = []): string {
   const m = computeMetrics(roast)
-  const plan = findPlan(roast.plan_id)
+  const plan = findPlan(roast.plan_id, plans)
   const lines = [
     `- Date: ${new Date(roast.roasted_at).toLocaleString('en-GB')}${n ? ` (roast #${n})` : ''}`,
     roast.batch_g && `- Batch: ${roast.batch_g} g green${roast.roasted_g ? ` → ${roast.roasted_g} g roasted` : ''}${m.weightLossPct != null ? ` (weight loss ${m.weightLossPct.toFixed(1)}%)` : ''}`,
     roast.preheat_c && `- Preheat: ${fmtTemp(roast.preheat_c, unit)}`,
     roast.ambient_c != null && `- Room temperature: ${fmtTemp(roast.ambient_c, unit)}`,
-    plan && `- Starting plan: ${plan.name}`,
+    plan && `- Plan: ${plan.name}${plan.mine ? ` (my own: ${[describeSteps(plan, unit), describeTargets(plan)].filter(Boolean).join('; ')})` : ''}`,
     roast.brew && `- Roasted for: ${roast.brew}`,
     roast.target_level && `- Target level: ${findLevel(roast.target_level)?.name ?? roast.target_level}`,
     roast.level && `- Level judged at the end: ${findLevel(roast.level)?.name ?? roast.level}`,
@@ -98,8 +99,8 @@ export function tastingText(t: Tasting, roast: Roast): string {
 }
 
 /** Everything about one roast, written so it can be pasted into a new Claude chat. */
-export function roastForClaude(opts: { roast: Roast; bean: Bean | null; tastings: Tasting[]; history: HistoryEntry[]; unit: Unit; n?: number }): string {
-  const { roast, bean, tastings, history, unit, n } = opts
+export function roastForClaude(opts: { roast: Roast; bean: Bean | null; tastings: Tasting[]; history: HistoryEntry[]; unit: Unit; n?: number; plans?: Plan[] }): string {
+  const { roast, bean, tastings, history, unit, n, plans = [] } = opts
   const out: string[] = []
   out.push('# Home coffee roast: please help me improve the next one')
   out.push('')
@@ -120,7 +121,7 @@ export function roastForClaude(opts: { roast: Roast; bean: Bean | null; tastings
     out.push('')
   }
   out.push('## This roast')
-  out.push(roastSummaryText(roast, unit, n))
+  out.push(roastSummaryText(roast, unit, n, plans))
   out.push('')
   out.push(`### Readings (${unit === 'C' ? '°C' : '°F'})`)
   out.push('```csv')

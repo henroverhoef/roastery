@@ -16,6 +16,7 @@ export interface AdviceItem {
   title: string
   body: string
   sources: SourceId[]
+  drop_s?: number // the suggested cool time, when the change is "cool earlier/later"
 }
 
 export interface Advice {
@@ -366,6 +367,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
       const later = round5(drop - total)
       return {
         id: 'dev-more',
+        drop_s: Math.round(drop),
         tone: 'change',
         title: `Drop about ${later} s later (at ${fmtTime(drop)})`,
         body: `First crack was at ${fmtTime(fc)} and you pressed cool at ${fmtTime(total)}: ${fmtDuration(m.devS ?? 0)} of development, DTR ${fmtPct(dtr)}. That’s below the 20–25% Scott Rao prefers. Cooling at ${fmtTime(drop)} gives 20%; ${fmtTime(at(DTR_MID))} gives 22.5%.${geneHow(drop)}`,
@@ -377,6 +379,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
       const later = round5(drop - total)
       return {
         id: 'dev-more',
+        drop_s: Math.round(drop),
         tone: 'change',
         title: `Try ${later} s later (at ${fmtTime(drop)})`,
         body: `Development was ${fmtDuration(m.devS ?? 0)} (DTR ${fmtPct(dtr)}), already inside the 20–25% band, so move towards its upper end: ${fmtTime(at(DTR_MID))} gives 22.5% and ${fmtTime(at(DTR_HIGH))} gives 25%. If it’s still underdeveloped after that, the issue is more likely before first crack (see below).${geneHow(drop)}`,
@@ -398,6 +401,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
     const earlier = round5(total - drop)
     return {
       id: 'dev-less',
+      drop_s: Math.round(drop),
       tone: 'change',
       title: `Drop about ${earlier} s earlier (at ${fmtTime(drop)})`,
       body: `First crack ${fmtTime(fc)}, cool at ${fmtTime(total)}: ${fmtDuration(m.devS ?? 0)} of development, DTR ${fmtPct(dtr)}. That’s above Rao’s 20–25%. Cooling at ${fmtTime(drop)} gives 25%; ${fmtTime(at(DTR_MID))} gives 22.5%.${geneHow(drop)}`,
@@ -409,6 +413,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
     const earlier = round5(total - drop)
     return {
       id: 'dev-less',
+      drop_s: Math.round(drop),
       tone: 'change',
       title: `Try ${earlier} s earlier (at ${fmtTime(drop)})`,
       body: `Development was ${fmtDuration(m.devS ?? 0)} (DTR ${fmtPct(dtr)}), inside the 20–25% band. Move towards its lower end: ${fmtTime(drop)} gives 20%. Light-roast specialists often go below 20% too, which Rao says can still be excellent.${geneHow(drop)}`,

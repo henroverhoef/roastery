@@ -89,21 +89,35 @@ export const manualChart = [
 ] as const
 
 export interface PlanStep {
-  when: 'start' | 'fc' // at the start, or at first crack (+ offset_s)
+  when: 'start' | 'fc' | 'time' // at the start, at first crack (+ offset_s), or at a fixed time (at_s)
   offset_s?: number
+  at_s?: number
   c: number
+}
+
+/** When to press cool: at a fixed time, a number of seconds after first crack, or at a DTR. */
+export interface PlanDrop {
+  mode: 'time' | 'dev' | 'dtr'
+  value: number // seconds for time/dev, a fraction (0.2 = 20%) for dtr
 }
 
 export interface Plan {
   id: string
   name: string
   forWhat: string
-  batch_g?: number
-  preheat_c?: number
+  batch_g?: number | null
+  preheat_c?: number | null
   timer_min?: number
   steps: PlanStep[]
   note: string
   sources: SourceId[]
+  // Only on plans you design yourself:
+  mine?: boolean
+  bean_id?: string | null
+  target_level?: string | null
+  curve?: { t: number; c: number }[] // target display temperatures
+  targets?: { yellow_s: number | null; fc_s: number | null }
+  drop?: PlanDrop | null
 }
 
 export const plans: Plan[] = [
@@ -173,26 +187,67 @@ export const plans: Plan[] = [
   })),
 ]
 
-export function findPlan(id: string | null | undefined): Plan | undefined {
-  return plans.find((p) => p.id === id)
+export function findPlan(id: string | null | undefined, mine: Plan[] = []): Plan | undefined {
+  if (!id) return undefined
+  return mine.find((p) => p.id === id) ?? plans.find((p) => p.id === id)
 }
 
-/** The set temperature a plan asks for at time t (needs first crack to apply 'fc' steps). */
+/** When a step happens. First-crack steps need first crack (or, for planning, the target). */
+export function stepTime(step: PlanStep, fcS: number | null): number | null {
+  if (step.when === 'start') return 0
+  if (step.when === 'time') return step.at_s ?? 0
+  return fcS == null ? null : fcS + (step.offset_s ?? 0)
+}
+
+/** The set temperature a plan asks for at time t. */
 export function planSetpointAt(plan: Plan, t: number, fcS: number | null): number | null {
-  let current: number | null = null
-  for (const step of plan.steps) {
-    const at = step.when === 'start' ? 0 : fcS == null ? null : fcS + (step.offset_s ?? 0)
-    if (at != null && t >= at) current = step.c
-  }
-  return current
+  const timed = plan.steps
+    .map((step) => ({ step, at: stepTime(step, fcS) }))
+    .filter((x): x is { step: PlanStep; at: number } => x.at != null && x.at <= t)
+    .sort((a, b) => a.at - b.at)
+  return timed.length ? timed[timed.length - 1].step.c : null
 }
 
-/** The next plan step that hasn't happened yet, for the live prompt. */
+/** The next step still to come, for the live prompt. A first-crack step without first crack has at = null. */
 export function nextPlanStep(plan: Plan, t: number, fcS: number | null): { step: PlanStep; at: number | null } | null {
-  for (const step of plan.steps) {
-    if (step.when === 'start') continue
-    const at = fcS == null ? null : fcS + (step.offset_s ?? 0)
-    if (at == null || t < at) return { step, at }
+  const fcGuess = fcS ?? plan.targets?.fc_s ?? null
+  const upcoming = plan.steps
+    .filter((step) => step.when !== 'start')
+    .map((step) => ({ step, at: stepTime(step, fcS), sortAt: stepTime(step, fcGuess) ?? Infinity }))
+    .filter((x) => x.at == null || x.at > t)
+    .sort((a, b) => a.sortAt - b.sortAt)
+  return upcoming.length ? { step: upcoming[0].step, at: upcoming[0].at } : null
+}
+
+/** When the plan says to press cool, given the actual (or planned) first crack. */
+export function planDropAt(plan: Plan, fcS: number | null): number | null {
+  const d = plan.drop
+  if (!d) return null
+  const fc = fcS ?? plan.targets?.fc_s ?? null
+  if (d.mode === 'time') return d.value
+  if (fc == null) return null
+  if (d.mode === 'dev') return fc + d.value
+  return d.value > 0 && d.value < 1 ? fc / (1 - d.value) : null
+}
+
+/** The plan's target display temperature at time t (between curve points). */
+export function planTargetAt(plan: Plan, t: number): number | null {
+  const pts = [...(plan.curve ?? [])].sort((a, b) => a.t - b.t)
+  if (pts.length < 2 || t < pts[0].t || t > pts[pts.length - 1].t) return null
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].t >= t) {
+      const a = pts[i - 1]
+      const b = pts[i]
+      return b.t === a.t ? b.c : a.c + ((b.c - a.c) * (t - a.t)) / (b.t - a.t)
+    }
   }
   return null
+}
+
+/** The set-temperature schedule as times, using actual (or planned) first crack. */
+export function planSetpoints(plan: Plan, fcS: number | null): { t: number; c: number }[] {
+  return plan.steps
+    .map((step) => ({ t: stepTime(step, fcS ?? plan.targets?.fc_s ?? null), c: step.c }))
+    .filter((x): x is { t: number; c: number } => x.t != null)
+    .sort((a, b) => a.t - b.t)
 }

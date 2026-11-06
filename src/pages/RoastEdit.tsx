@@ -4,18 +4,9 @@ import { useStore } from '../data/store'
 import { Chips, Empty, Field, Header, numOrNull } from '../components/ui'
 import { appearanceTags, roastLevels } from '../knowledge/roasting'
 import { brewMethods } from '../knowledge/flavours'
-import { fmtTime, tempIn, toC } from '../lib/format'
+import { fmtTime, parseTime, tempIn, toC } from '../lib/format'
 import type { EventType, Roast, Unit } from '../lib/types'
 
-/** "9:30" → 570, "570" → 570 */
-export function parseTime(s: string): number | null {
-  const v = s.trim()
-  if (!v) return null
-  const m = v.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/)
-  if (m) return parseInt(m[1], 10) * 60 + parseFloat(m[2])
-  const n = parseFloat(v)
-  return Number.isFinite(n) ? n : null
-}
 
 const eventTypes: { id: EventType; name: string }[] = [
   { id: 'yellow', name: 'Yellow' },

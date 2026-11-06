@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { EventType, Roast } from './types'
+import type { Plan } from '../knowledge/gene'
 
 // The roast in progress. It lives in localStorage and is updated on every tap, so a reload,
 // a locked phone or a flat battery mid-roast doesn't lose anything. The clock is derived from
@@ -12,6 +13,7 @@ export interface LiveState {
   startedAt: number // epoch ms when the beans went in
   log: ('r' | 's' | 'e')[] // order of entries, for undo
   follow?: { label: string; curve: Curve } // someone's public roast to roast along with
+  plan?: Plan // the plan as it was when the roast started
 }
 
 const KEY = 'roastery.live'
@@ -53,8 +55,8 @@ const round1 = (t: number) => Math.round(t * 10) / 10
 
 export const live = {
   get: () => state,
-  start(roast: Roast, startedAt = Date.now(), follow?: LiveState['follow']) {
-    set({ roast, startedAt, log: [], ...(follow ? { follow } : {}) })
+  start(roast: Roast, startedAt = Date.now(), follow?: LiveState['follow'], plan?: Plan) {
+    set({ roast, startedAt, log: [], ...(follow ? { follow } : {}), ...(plan ? { plan } : {}) })
   },
   reading(c: number, t?: number) {
     if (!state) return

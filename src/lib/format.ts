@@ -24,6 +24,16 @@ export function fmtDelta(dc: number, unit: Unit): string {
   return `${v > 0 ? '+' : ''}${v}°${unit}`
 }
 
+/** "9:30" → 570, "570" → 570 */
+export function parseTime(s: string): number | null {
+  const v = s.trim()
+  if (!v) return null
+  const m = v.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/)
+  if (m) return parseInt(m[1], 10) * 60 + parseFloat(m[2])
+  const n = parseFloat(v)
+  return Number.isFinite(n) ? n : null
+}
+
 /** 754 → "12:34" */
 export function fmtTime(s: number | null | undefined): string {
   if (s == null || Number.isNaN(s)) return '–'

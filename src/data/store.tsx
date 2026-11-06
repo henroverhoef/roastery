@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { defaultSettings, type Bean, type Roast, type Settings, type Tasting } from '../lib/types'
 import { queueOp, type Op } from './outbox'
 import { buildPublicRow, type MyShare, type ShareOptions } from '../lib/public'
+import { planFromRow, type PlanRow } from '../lib/plans'
+import type { Plan } from '../knowledge/gene'
 
 // Offline-first store. Everything is kept in memory and in localStorage, and every change is
 // queued in an "outbox" that's sent to Supabase as soon as there's a connection. So a roast
@@ -15,9 +17,11 @@ interface Snapshot {
   tastings: Tasting[]
   settings: Settings
   shares: MyShare[] // your roasts that are in the public library
+  plans: PlanRow[] // plans you designed yourself
 }
 
 interface Store extends Snapshot {
+  myPlans: Plan[]
   authReady: boolean
   session: Session | null
   loaded: boolean
@@ -31,6 +35,8 @@ interface Store extends Snapshot {
   saveTasting: (t: Tasting) => void
   deleteTasting: (id: string) => void
   saveSettings: (s: Partial<Settings>) => void
+  savePlan: (p: PlanRow) => void
+  deletePlan: (id: string) => void
   shareRoast: (roastId: string, opts: ShareOptions) => void
   unshareRoast: (roastId: string) => void
   refresh: () => Promise<void>
@@ -39,7 +45,7 @@ interface Store extends Snapshot {
 
 const StoreContext = createContext<Store | null>(null)
 
-const empty: Snapshot = { beans: [], roasts: [], tastings: [], settings: defaultSettings, shares: [] }
+const empty: Snapshot = { beans: [], roasts: [], tastings: [], settings: defaultSettings, shares: [], plans: [] }
 const cacheKey = (uid: string) => `roastery.cache.${uid}`
 const outboxKey = (uid: string) => `roastery.outbox.${uid}`
 
@@ -64,13 +70,14 @@ const byRoastedDesc = (a: Roast, b: Roast) => b.roasted_at.localeCompare(a.roast
 
 /** Apply queued (not yet synced) changes on top of rows fetched from the server. */
 function applyOps(snap: Snapshot, ops: Op[]): Snapshot {
-  let { beans, roasts, tastings, settings, shares } = snap
+  let { beans, roasts, tastings, settings, shares, plans } = snap
   for (const op of ops) {
     const upsert = <T extends { id: string }>(list: T[]) =>
       op.kind === 'delete' ? list.filter((x) => x.id !== op.id) : [...list.filter((x) => x.id !== op.id), op.row as unknown as T]
     if (op.table === 'roast_beans') beans = upsert(beans)
     if (op.table === 'roast_roasts') roasts = upsert(roasts)
     if (op.table === 'roast_tastings') tastings = upsert(tastings)
+    if (op.table === 'roast_plans') plans = upsert(plans)
     if (op.table === 'roast_settings' && op.row) settings = { ...settings, ...(op.row.data as Partial<Settings>) }
     if (op.table === 'roast_public') {
       shares = shares.filter((x) => x.id !== op.id)
@@ -80,7 +87,7 @@ function applyOps(snap: Snapshot, ops: Op[]): Snapshot {
       }
     }
   }
-  return { beans, roasts: [...roasts].sort(byRoastedDesc), tastings, settings, shares }
+  return { beans, roasts: [...roasts].sort(byRoastedDesc), tastings, settings, shares, plans: [...plans].sort((a, b) => a.name.localeCompare(b.name)) }
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -161,12 +168,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!uid) return
-    const [b, r, t, s, p] = await Promise.all([
+    const [b, r, t, s, p, pl] = await Promise.all([
       supabase.from('roast_beans').select('*'),
       supabase.from('roast_roasts').select('*').order('roasted_at', { ascending: false }),
       supabase.from('roast_tastings').select('*'),
       supabase.from('roast_settings').select('*').maybeSingle(),
       supabase.from('roast_public').select('id,display_name,shares_notes,published_at').eq('user_id', uid),
+      supabase.from('roast_plans').select('*'),
     ])
     if (b.error || r.error || t.error) return // offline or not reachable: keep the cache
     const server: Snapshot = {
@@ -175,6 +183,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       tastings: t.data as Tasting[],
       settings: { ...defaultSettings, ...((s.data?.data as Partial<Settings>) ?? {}) },
       shares: p.error ? snapRef.current.shares : (p.data as MyShare[]),
+      plans: pl.error ? snapRef.current.plans : (pl.data as PlanRow[]),
     }
     commit(applyOps(server, outbox.current))
   }, [uid, commit])
@@ -191,7 +200,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPending(outbox.current.length)
     const cached = readJson<Snapshot | null>(cacheKey(uid), null)
     if (cached) {
-      commit({ ...cached, settings: { ...defaultSettings, ...cached.settings }, shares: cached.shares ?? [] })
+      commit({ ...cached, settings: { ...defaultSettings, ...cached.settings }, shares: cached.shares ?? [], plans: cached.plans ?? [] })
       setLoaded(true)
     }
     flush().then(refresh).finally(() => setLoaded(true))
@@ -249,6 +258,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const stamp = <T extends { updated_at: string }>(x: T): T => ({ ...x, updated_at: new Date().toISOString() })
     return {
       ...snap,
+      myPlans: snap.plans.map(planFromRow),
       authReady,
       session,
       loaded,
@@ -286,6 +296,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const data = { ...snapRef.current.settings, ...s }
         enqueue({ table: 'roast_settings', kind: 'upsert', id: uid ?? 'me', row: { data, updated_at: new Date().toISOString() } })
       },
+      savePlan: (p) => enqueue({ table: 'roast_plans', kind: 'upsert', id: p.id, row: stamp(p) as unknown as Record<string, unknown> }),
+      deletePlan: (id) => enqueue({ table: 'roast_plans', kind: 'delete', id }),
       shareRoast: (roastId, opts) => {
         const s = snapRef.current
         const roast = s.roasts.find((r) => r.id === roastId)
