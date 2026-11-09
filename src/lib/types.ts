@@ -8,7 +8,7 @@ export type EventType =
   | 'fc_start' // first crack begins: end of the Maillard phase, start of development
   | 'fc_end' // first crack is over
   | 'sc_start' // second crack begins
-  | 'drop' // cool button pressed / beans out: the end of the roast
+  | 'drop' // the end of the roast: beans dropped out of the chamber (or cool pressed)
   | 'colour' // what the beans look like right now (value = ColourStage id)
   | 'smell' // what the exhaust smells like right now (value = Smell id)
   | 'note'
@@ -101,7 +101,10 @@ export interface Settings {
   sound: boolean
   location_m: number | null // altitude where you roast, metres
   public_name: string | null // name shown on roasts you share in the public library
+  ending: EndMethod // how you end a roast: dump the beans to cool them yourself, or the Gene's cooling cycle
 }
+
+export type EndMethod = 'dump' | 'gene'
 
 export const defaultSettings: Settings = {
   unit: 'C',
@@ -111,4 +114,5 @@ export const defaultSettings: Settings = {
   sound: true,
   location_m: null,
   public_name: null,
+  ending: 'dump',
 }

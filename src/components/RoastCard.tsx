@@ -31,7 +31,7 @@ export default function RoastCard({ roast, bean, tastings, n }: { roast: Roast; 
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-stone-700 dark:text-stone-300">
         <span>1C {fmtTime(m.fcS)}</span>
-        <span>Cool {fmtTime(m.dropS)}</span>
+        <span>Drop {fmtTime(m.dropS)}</span>
         <span>DTR {fmtPct(m.dtr)}</span>
         {m.weightLossPct != null && <span>Loss {m.weightLossPct.toFixed(1)}%</span>}
         {roast.level && <span>{findLevel(roast.level)?.name}</span>}

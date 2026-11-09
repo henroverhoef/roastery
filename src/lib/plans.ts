@@ -5,7 +5,7 @@ import { fmtTime, tempIn } from './format'
 import type { Roast, RoastEvent, Unit } from './types'
 
 // "My plans": plans you design yourself, stored in roast_plans. A plan is a set-temperature
-// schedule plus optional targets (yellow, first crack, when to cool) and a target curve.
+// schedule plus optional targets (yellow, first crack, when to drop) and a target curve.
 
 export interface PlanData {
   batch_g: number | null
@@ -66,8 +66,8 @@ export function thinCurve(points: { t: number; c: number }[], gap = 30): { t: nu
 /**
  * A plan that repeats a roast. Set-temperature changes made around first crack (from 30 s
  * before to 3 min after) become "at first crack + n s" steps, because that's how you'd repeat
- * them on the Gene. Cooling is planned as time after first crack, unless `dropS` overrides it
- * (e.g. the advice's suggested cool time).
+ * them on the Gene. The drop is planned as time after first crack, unless `dropS` overrides it
+ * (e.g. the advice's suggested drop time).
  */
 export function planDataFromRoast(roast: Roast, dropS?: number | null): PlanData {
   const m = computeMetrics(roast)
@@ -79,8 +79,8 @@ export function planDataFromRoast(roast: Roast, dropS?: number | null): PlanData
       if (fc != null && sp.t >= fc - 30 && sp.t <= fc + 180) return { when: 'fc' as const, offset_s: Math.max(0, Math.round(sp.t - fc)), c: sp.c }
       return { when: 'time' as const, at_s: Math.round(sp.t), c: sp.c }
     })
-  const cool = dropS ?? m.dropS
-  const drop: PlanDrop | null = cool == null ? null : fc != null ? { mode: 'dev', value: Math.max(0, Math.round(cool - fc)) } : { mode: 'time', value: Math.round(cool) }
+  const end = dropS ?? m.dropS
+  const drop: PlanDrop | null = end == null ? null : fc != null ? { mode: 'dev', value: Math.max(0, Math.round(end - fc)) } : { mode: 'time', value: Math.round(end) }
   const upToDrop = roast.readings.filter((r) => m.dropS == null || r.t <= m.dropS)
   return {
     batch_g: roast.batch_g,
@@ -125,7 +125,7 @@ export function describeSteps(plan: Plan, unit: Unit): string {
     .join(' → ')
 }
 
-/** "yellow 4:30 · 1st crack 9:00 · cool 2:15 after 1st crack (11:15)" */
+/** "yellow 4:30 · 1st crack 9:00 · drop 2:15 after 1st crack (11:15)" */
 export function describeTargets(plan: Plan): string {
   const parts: string[] = []
   if (plan.targets?.yellow_s != null) parts.push(`yellow ${fmtTime(plan.targets.yellow_s)}`)
@@ -133,9 +133,9 @@ export function describeTargets(plan: Plan): string {
   const d = plan.drop
   if (d) {
     const at = planDropAt(plan, null)
-    if (d.mode === 'time') parts.push(`cool at ${fmtTime(d.value)}`)
-    else if (d.mode === 'dev') parts.push(`cool ${fmtTime(d.value)} after 1st crack${at != null ? ` (${fmtTime(at)})` : ''}`)
-    else parts.push(`cool at ${Math.round(d.value * 1000) / 10}% DTR${at != null ? ` (${fmtTime(at)})` : ''}`)
+    if (d.mode === 'time') parts.push(`drop at ${fmtTime(d.value)}`)
+    else if (d.mode === 'dev') parts.push(`drop ${fmtTime(d.value)} after 1st crack${at != null ? ` (${fmtTime(at)})` : ''}`)
+    else parts.push(`drop at ${Math.round(d.value * 1000) / 10}% DTR${at != null ? ` (${fmtTime(at)})` : ''}`)
   }
   return parts.join(' · ')
 }

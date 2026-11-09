@@ -25,6 +25,8 @@ export const sources = {
   hbGeneBatch2: { title: 'Home-Barista – Gene Café optimal batch size and uneven roast (page 2)', url: 'https://www.home-barista.com/roasting/gene-cafe-optimal-batch-size-and-uneven-roast-t35451-10.html', kind: 'forum' },
   hbGeneOpinions: { title: 'Home-Barista – Gene Café roaster opinions', url: 'https://www.home-barista.com/roasting/gene-cafe-roaster-opinions-t3436.html', kind: 'forum' },
   hbGeneCooling: { title: 'Home-Barista – First roast Gene Café (cooling)', url: 'https://www.home-barista.com/roasting/first-roast-gene-cafe-t91517.html', kind: 'forum' },
+  hbGeneExternalCool: { title: 'Home-Barista – Gene Café: is using an external cooler worth the bother?', url: 'https://www.home-barista.com/roasting/gene-cafe-is-using-external-cooler-worth-bother-t68092.html', kind: 'forum' },
+  csGeneCooler: { title: 'CoffeeSnobs – Gene Café CBC-101 cooler', url: 'https://coffeesnobs.com.au/forum/equipment/roasters/840032-gene-cafe-cbc-101-cooler', kind: 'forum' },
   hbGeneHearing: { title: 'Home-Barista – Hearing cracks on the Gene Café CBR-101', url: 'https://www.home-barista.com/roasting/hearing-cracks-on-gene-cafe-cbr-101-t57890.html', kind: 'forum' },
   cfGeneSlow: { title: 'Coffee Forums UK – Gene Caffè: the temperature rises too slowly', url: 'https://www.coffeeforums.co.uk/threads/gene-caff%C3%A8-the-temperature-rises-too-slowly.42779', kind: 'forum' },
 

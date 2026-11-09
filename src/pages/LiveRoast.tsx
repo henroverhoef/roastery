@@ -123,7 +123,7 @@ export default function LiveRoast() {
 
   const phase =
     dropT != null
-      ? `Cooling ${fmtTime(t - dropT)}`
+      ? `Dropped · ${fmtTime(t - dropT)} ago`
       : m.fcS != null
         ? `Development ${fmtTime(t - m.fcS)} · DTR ${Math.round((m.dtr ?? 0) * 100)}%`
         : m.yellowS != null
@@ -209,7 +209,7 @@ export default function LiveRoast() {
             {planTargets ? (
               <>Plan: {planTargets}</>
             ) : refM && reference ? (
-              <>{ownRef ? 'Reference' : 'Roasting along with'} {refLabel}: yellow {fmtTime(refM.yellowS)} · first crack {fmtTime(refM.fcS)} at {fmtTemp(refM.tempAtFcC, unit)} · cool {fmtTime(refM.dropS)}</>
+              <>{ownRef ? 'Reference' : 'Roasting along with'} {refLabel}: yellow {fmtTime(refM.yellowS)} · first crack {fmtTime(refM.fcS)} at {fmtTemp(refM.tempAtFcC, unit)} · drop {fmtTime(refM.dropS)}</>
             ) : (
               <>At about 232 °C on the Gene, yellowing usually comes at about 4–6 min and first crack at about 9–12 min (Burman). Watch the beans: cracks are hard to hear.</>
             )}
@@ -249,7 +249,7 @@ export default function LiveRoast() {
             beep(settings.sound)
           }}
         >
-          Cool
+          Drop
           {dropT != null && <span className="text-xs font-normal tabular-nums">{fmtTime(dropT)}</span>}
         </button>
         <button className="flex min-h-13 flex-col items-center justify-center rounded-xl bg-stone-200 text-[13px] font-semibold dark:bg-stone-800" onClick={() => setSheet('more')}>
@@ -304,7 +304,7 @@ export default function LiveRoast() {
         <Sheet title="Roast" onClose={() => setSheet(null)}>
           <div className="space-y-2">
             <button className="btn-secondary w-full" onClick={() => { setSheet(null); navigate('/') }}>Leave this screen (the roast keeps running)</button>
-            {dropT == null && <button className="btn-secondary w-full" onClick={() => { logEvent('drop'); setSheet('finish') }}>Cool now &amp; finish</button>}
+            {dropT == null && <button className="btn-secondary w-full" onClick={() => { logEvent('drop'); setSheet('finish') }}>Drop now &amp; finish</button>}
             <button
               className="btn-danger w-full"
               onClick={() => {
@@ -348,12 +348,12 @@ function DropTargets({ fcS, t, refDrop, refDev, refLabel, planDrop }: { fcS: num
     <div className="rounded-xl bg-stone-100 p-2.5 dark:bg-stone-800">
       {planDrop != null && (
         <div className={`mb-0.5 tabular-nums ${t >= planDrop ? 'font-bold text-red-700 dark:text-red-400' : ''}`}>
-          Plan: cool at <b>{fmtTime(planDrop)}</b>
+          Plan: drop at <b>{fmtTime(planDrop)}</b>
           {t < planDrop ? ` (in ${fmtTime(planDrop - t)})` : ' (now)'}
         </div>
       )}
       <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 ${planDrop != null ? 'text-xs' : ''}`}>
-        <span className="text-stone-600 dark:text-stone-400">Cool at DTR</span>
+        <span className="text-stone-600 dark:text-stone-400">Drop at DTR</span>
         {targets.map((x) => (
           <span key={x.label} className={`tabular-nums ${t >= x.at ? 'text-stone-400 line-through' : 'font-semibold'}`}>
             {x.label} {fmtTime(x.at)}
@@ -362,7 +362,7 @@ function DropTargets({ fcS, t, refDrop, refDev, refLabel, planDrop }: { fcS: num
       </div>
       {refLabel && refDev != null && (
         <div className="mt-0.5 text-stone-600 tabular-nums dark:text-stone-400">
-          {refLabel} had {fmtTime(refDev)} development → {fmtTime(fcS + refDev)} today{refDrop != null ? ` (it cooled at ${fmtTime(refDrop)})` : ''}
+          {refLabel} had {fmtTime(refDev)} development → {fmtTime(fcS + refDev)} today{refDrop != null ? ` (it dropped at ${fmtTime(refDrop)})` : ''}
         </div>
       )}
     </div>

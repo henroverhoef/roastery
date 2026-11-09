@@ -91,7 +91,7 @@ export const roastingFacts: Fact[] = [
   {
     title: 'Three phases',
     body:
-      'Drying: from loading the beans until they turn yellow. Maillard (browning): from yellow until first crack. Development: from first crack until you press cool. Moisture actually leaves the beans steadily until just before first crack, and “yellow” is a judgement call, so mark it the same way every time.',
+      'Drying: from loading the beans until they turn yellow. Maillard (browning): from yellow until first crack. Development: from first crack until the roast ends (you drop the beans, or press cool). Moisture actually leaves the beans steadily until just before first crack, and “yellow” is a judgement call, so mark it the same way every time.',
     sources: ['bhPhases'],
   },
   {

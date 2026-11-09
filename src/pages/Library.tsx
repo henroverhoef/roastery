@@ -97,7 +97,7 @@ function LibraryCard({ row, mine }: { row: PublicRow; mine: boolean }) {
       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-stone-700 dark:text-stone-300">
         {s.batch_g && <span>{s.batch_g} g</span>}
         <span>1C {fmtTime(s.fc_s)}</span>
-        <span>Cool {fmtTime(s.drop_s)}</span>
+        <span>Drop {fmtTime(s.drop_s)}</span>
         <span>DTR {fmtPct(s.dtr)}</span>
         {s.weight_loss != null && <span>Loss {s.weight_loss.toFixed(1)}%</span>}
         {s.level && <span>{findLevel(s.level)?.name}</span>}

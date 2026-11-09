@@ -13,7 +13,7 @@ const eventTypes: { id: EventType; name: string }[] = [
   { id: 'fc_start', name: '1st crack' },
   { id: 'fc_end', name: '1st crack end' },
   { id: 'sc_start', name: '2nd crack' },
-  { id: 'drop', name: 'Cool (drop)' },
+  { id: 'drop', name: 'Drop (end)' },
   { id: 'colour', name: 'Colour' },
   { id: 'smell', name: 'Smell' },
   { id: 'note', name: 'Note' },

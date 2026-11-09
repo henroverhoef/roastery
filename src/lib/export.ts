@@ -1,4 +1,4 @@
-import type { Bean, Roast, Tasting, Unit } from './types'
+import type { Bean, EndMethod, Roast, Tasting, Unit } from './types'
 import { computeMetrics, setpointAt } from './metrics'
 import { daysBetween, fmtDuration, fmtPct, fmtTemp, fmtTime, tempIn } from './format'
 import { findOrigin } from '../knowledge/origins'
@@ -15,7 +15,7 @@ const eventNames: Record<string, string> = {
   fc_start: 'First crack start',
   fc_end: 'First crack end',
   sc_start: 'Second crack start',
-  drop: 'Cool pressed (drop)',
+  drop: 'Drop (end of the roast)',
   colour: 'Colour',
   smell: 'Smell',
   note: 'Note',
@@ -56,7 +56,7 @@ export function roastSummaryText(roast: Roast, unit: Unit, n?: number, plans: Pl
     roast.target_level && `- Target level: ${findLevel(roast.target_level)?.name ?? roast.target_level}`,
     roast.level && `- Level judged at the end: ${findLevel(roast.level)?.name ?? roast.level}`,
     roast.appearance.length && `- Appearance: ${roast.appearance.join(', ')}`,
-    `- Yellow: ${fmtTime(m.yellowS)} · First crack: ${fmtTime(m.fcS)} · FC end: ${fmtTime(m.fcEndS)} · Second crack: ${fmtTime(m.scS)} · Cool pressed: ${fmtTime(m.dropS)}`,
+    `- Yellow: ${fmtTime(m.yellowS)} · First crack: ${fmtTime(m.fcS)} · FC end: ${fmtTime(m.fcEndS)} · Second crack: ${fmtTime(m.scS)} · Drop: ${fmtTime(m.dropS)}`,
     `- Development: ${m.devS != null ? fmtDuration(m.devS) : '–'} · DTR ${fmtPct(m.dtr, 1)} · Drying ${fmtPct(m.dryingPct)} · Maillard ${fmtPct(m.maillardPct)}`,
     `- Display at first crack: ${fmtTemp(m.tempAtFcC, unit)} · at drop: ${fmtTemp(m.tempAtDropC, unit)} · max: ${fmtTemp(m.maxTempC, unit)}`,
     roast.notes && `- Notes: ${roast.notes}`,
@@ -121,14 +121,14 @@ export function planVsActual(plan: Plan, roast: Roast): string[] {
   if (y) lines.push(`- Yellow: ${y}`)
   const f = diff(plan.targets?.fc_s, m.fcS)
   if (f) lines.push(`- First crack: ${f}`)
-  const coolPlanned = planDropAt(plan, null)
-  const coolForRealFc = planDropAt(plan, m.fcS)
-  const coolTarget = coolForRealFc ?? coolPlanned
-  if (coolTarget != null) {
-    const moved = coolPlanned != null && coolForRealFc != null && coolPlanned !== coolForRealFc
-    const d = m.dropS != null ? Math.round(m.dropS - coolTarget) : null
+  const dropPlanned = planDropAt(plan, null)
+  const dropForRealFc = planDropAt(plan, m.fcS)
+  const dropTarget = dropForRealFc ?? dropPlanned
+  if (dropTarget != null) {
+    const moved = dropPlanned != null && dropForRealFc != null && dropPlanned !== dropForRealFc
+    const d = m.dropS != null ? Math.round(m.dropS - dropTarget) : null
     const actual = m.dropS == null ? 'not logged' : `actual ${fmtTime(m.dropS)} (${d === 0 ? 'on time' : `${Math.abs(d!)} s ${d! > 0 ? 'later' : 'earlier'}`})`
-    lines.push(`- Cool: planned ${fmtTime(coolTarget)}${moved ? ` (moved from ${fmtTime(coolPlanned)} to follow the real first crack)` : ''}, ${actual}`)
+    lines.push(`- Drop: planned ${fmtTime(dropTarget)}${moved ? ` (moved from ${fmtTime(dropPlanned)} to follow the real first crack)` : ''}, ${actual}`)
   }
   return lines
 }
@@ -143,8 +143,9 @@ export function roastForClaude(opts: {
   n?: number
   plans?: Plan[]
   wantPlan?: boolean // ask Claude for a plan in the importable format
+  ending?: EndMethod // how I end a roast (default: drop the beans and cool them myself)
 }): string {
-  const { roast, bean, tastings, history, unit, n, plans = [], wantPlan = false } = opts
+  const { roast, bean, tastings, history, unit, n, plans = [], wantPlan = false, ending = 'dump' } = opts
   const plan = findPlan(roast.plan_id, plans) ?? null
   const out: string[] = []
   out.push('# Home coffee roast: please help me improve the next one')
@@ -155,8 +156,12 @@ export function roastForClaude(opts: {
       '- Roaster: Gene Café CBR-101 (hot-air drum, off-axis rotation, ~250 g max batch).',
       '- Controls: set temperature (max 250 °C / 482 °F) and a timer only. No fan or drum-speed control.',
       '- The temperature I log is the Gene’s display, which is the EXHAUST AIR temperature, not bean temperature. It runs well above the beans (one owner estimated 15–20 °C), so don’t compare it with bean-probe numbers. The trend is still meaningful.',
-      '- The Gene keeps roasting a bit during its cooling cycle (beans stay in the drum).',
-      '- Times are mm:ss from loading the beans. “Drop” means when I pressed cool.',
+      ...(ending === 'gene'
+        ? ['- I end the roast with the Gene’s cooling cycle, so the beans keep roasting a bit in the drum after I press cool.', '- Times are mm:ss from loading the beans. “Drop” means when I pressed cool.']
+        : [
+            '- I don’t use the Gene’s cooling cycle on the beans. To end the roast I stop the Gene, take the chamber out and tip the beans into a big sieve to cool them by hand (faster). Then I run the cooling cycle with the empty chamber to cool the machine.',
+            '- Times are mm:ss from loading the beans. “Drop” means when I stopped the roast to tip the beans out.',
+          ]),
     ].join('\n'),
   )
   out.push('')
@@ -194,7 +199,7 @@ export function roastForClaude(opts: {
     for (const t of tastings) out.push(tastingText(t, roast))
     out.push('')
     const latest = [...tastings].sort((a, b) => b.tasted_on.localeCompare(a.tasted_on))[0]
-    const advice = adviseTasting({ roast, bean, tasting: latest, history, unit })
+    const advice = adviseTasting({ roast, bean, tasting: latest, history, unit, ending })
     out.push('## What my app suggested (rule-based, from roasting guides)')
     out.push(`- ${advice.headline}`)
     for (const i of advice.items) out.push(`- ${i.title}: ${i.body}`)
@@ -216,7 +221,7 @@ export function roastForClaude(opts: {
   }
   out.push('## What I’d like')
   out.push(
-    'Please research this origin/region/process and tell me what flavours it can give at its best, what my tasting notes say about this roast, and exactly what to change on my next roast on the Gene (set temperatures, when to change them, and when to press cool, in mm:ss). Change one or two things at most, and tell me what to look for while it roasts.',
+    'Please research this origin/region/process and tell me what flavours it can give at its best, what my tasting notes say about this roast, and exactly what to change on my next roast on the Gene (set temperatures, when to change them, and when to drop, in mm:ss). Change one or two things at most, and tell me what to look for while it roasts.',
   )
   if (wantPlan) {
     // Your own plan (already shown above) has a curve and targets; otherwise write this roast
@@ -232,8 +237,8 @@ export function roastForClaude(opts: {
         '- Put the whole plan in ONE ```csv code block, starting with the roastery_plan,v1 line. If you can make files, also give it to me as a downloadable .csv file.',
         `- Use °${unit} (unit row), times as m:ss from loading the beans, and the Gene’s DISPLAY temperatures, not bean temperatures.`,
         '- Base the times and the curve on my actual readings above (my machine, my power supply). Only change what you want me to do differently, and say above the block what changed and why.',
-        '- Include curve rows every 30–60 s from 0:00 to the planned cool time, so I can see during the roast whether I’m ahead or behind.',
-        '- Prefer set_at_fc and cool_after_fc for anything around first crack, because first crack moves from roast to roast.',
+        '- Include curve rows every 30–60 s from 0:00 to the planned drop time, so I can see during the roast whether I’m ahead or behind.',
+        '- Prefer set_at_fc and drop_after_fc for anything around first crack, because first crack moves from roast to roast.',
       ].join('\n'),
     )
     out.push('')

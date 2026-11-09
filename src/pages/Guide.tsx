@@ -131,7 +131,7 @@ export default function Guide() {
           <li>Off-flavours point a direction: grassy, sour, peanut or thin means develop further; harsh bitter, ashy or roasty means pull back. Smoky or ashy in a <i>light</i> roast, or burnt tips on the beans, means too much heat early instead.</li>
           <li>Your sliders add to that (sharp acidity → further; flat acidity or harsh bitterness → less).</li>
           <li>Your flavours are compared with your target for the bean (or the origin’s classic profile). E.g. a Brazil that tastes nutty when you want chocolate sits a step too light.</li>
-          <li>The size of the change comes from your own roast: the app works out the cool time that puts your development time ratio in Scott Rao’s 20–25% band (e.g. first crack 9:30 → cool at 11:53 for 20%). Above or below that band it looks elsewhere (heat before or after first crack).</li>
+          <li>The size of the change comes from your own roast: the app works out the drop time that puts your development time ratio in Scott Rao’s 20–25% band (e.g. first crack 9:30 → drop at 11:53 for 20%). Above or below that band it looks elsewhere (heat before or after first crack).</li>
           <li>Your best-rated roast of the same bean is shown alongside, because your own history beats any general rule.</li>
           <li>Origin, process and variety notes are added when they’re relevant, and too-fresh tastings get a rest warning.</li>
         </ol>

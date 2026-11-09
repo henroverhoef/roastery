@@ -14,7 +14,7 @@ export default function Plans() {
     <div className="page space-y-4">
       <Header title="My plans" back="/roasts" action={<Link to="/plans/new" className="btn-primary">+ Plan</Link>} />
       <p className="muted -mt-2">
-        Design a roast before you start: the dial changes, when you expect yellow and first crack, when to press cool, and the curve you’re aiming for. Then roast with
+        Design a roast before you start: the dial changes, when you expect yellow and first crack, when to drop, and the curve you’re aiming for. Then roast with
         it and the app keeps you on track.
       </p>
 
@@ -57,7 +57,7 @@ export default function Plans() {
         <Link to="/plans/new" className="btn-secondary w-full">A blank plan</Link>
         <Link to="/plans/import" className="btn-secondary w-full">Import a plan from Claude</Link>
         <p className="muted text-xs">
-          Tip: after tasting a roast, its page can turn the app’s suggestion (e.g. “cool 55 s later”) straight into a plan for the next one. Or tick “ask for a roast plan” when
+          Tip: after tasting a roast, its page can turn the app’s suggestion (e.g. “drop 55 s later”) straight into a plan for the next one. Or tick “ask for a roast plan” when
           you copy it for Claude, and import Claude’s plan here.
         </p>
       </div>

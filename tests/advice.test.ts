@@ -6,7 +6,7 @@ import type { Bean, Roast, Tasting } from '../src/lib/types'
 import { origins } from '../src/knowledge/origins'
 import { flavours } from '../src/knowledge/flavours'
 import { sources } from '../src/knowledge/sources'
-import { plans, planSetpointAt } from '../src/knowledge/gene'
+import { geneFacts, plans, planSetpointAt } from '../src/knowledge/gene'
 import { processes } from '../src/knowledge/processes'
 import { varieties } from '../src/knowledge/varieties'
 import { readingsCsv, roastForClaude } from '../src/lib/export'
@@ -85,6 +85,17 @@ describe('advice', () => {
     expect(main.title).toBe('Drop about 55 s later (at 11:53)')
     expect(a.items.some((i) => i.id === 'origin-light' && /Full City/.test(i.body))).toBe(true)
     expect(a.headline).toMatch(/Develop it further/)
+    expect(main.body).toContain('you dropped at 11:00')
+    expect(main.body).toContain('get the beans into the sieve')
+    expect(main.body).not.toContain('press cool')
+  })
+
+  it('tells Gene cooling-cycle users to press cool slightly early', () => {
+    const a = adviseTasting({ roast: roast(), bean: bean(), tasting: tasting({ tags: ['grassy', 'nutty'] }), history: [], unit: 'C', ending: 'gene' })
+    const main = a.items.find((i) => i.tone === 'change')!
+    expect(main.title).toBe('Drop about 55 s later (at 11:53)')
+    expect(main.body).toContain('press cool yourself at 11:53')
+    expect(main.body).not.toContain('sieve')
   })
 
   it('Brazil that is just nutty but aiming for chocolate → still nudges darker', () => {
@@ -146,8 +157,8 @@ describe('knowledge base integrity', () => {
       for (const b of o.best) expect(o.flavours.includes(b), `${o.id} best ${b} not in flavours`).toBe(true)
     }
   })
-  it('plans, processes and varieties cite known sources', () => {
-    for (const x of [...plans, ...processes, ...varieties]) for (const s of x.sources) expect(sourceIds.has(s), `${x.id}: ${s}`).toBe(true)
+  it('plans, processes, varieties and Gene facts cite known sources', () => {
+    for (const x of [...plans, ...processes, ...varieties, ...geneFacts]) for (const s of x.sources) expect(sourceIds.has(s), `${'id' in x ? x.id : x.title}: ${s}`).toBe(true)
   })
   it('plans give the right set temperature after first crack', () => {
     const shb = plans.find((p) => p.id === 'rr-shb')!

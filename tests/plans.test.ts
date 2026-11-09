@@ -42,7 +42,7 @@ describe('plan schedule', () => {
     expect(nextPlanStep(myPlan, 600, 560)).toBeNull()
   })
 
-  it('places the cool time from the real first crack', () => {
+  it('places the drop time from the real first crack', () => {
     expect(planDropAt(myPlan, null)).toBe(690) // planned 1st crack 9:00 + 2:30
     expect(planDropAt(myPlan, 600)).toBe(750) // real 1st crack 10:00 + 2:30
     expect(planDropAt({ ...myPlan, drop: { mode: 'dtr', value: 0.2 } }, 600)).toBe(750)
@@ -64,7 +64,7 @@ describe('plan schedule', () => {
   it('describes itself in words, in either unit', () => {
     expect(describeSteps(myPlan, 'C')).toBe('245° from the start → 240° at 5:00 → 233° at 1st crack + 30 s')
     expect(describeSteps(myPlan, 'F')).toBe('473° from the start → 464° at 5:00 → 451° at 1st crack + 30 s')
-    expect(describeTargets(myPlan)).toBe('yellow 4:30 · 1st crack 9:00 · cool 2:30 after 1st crack (11:30)')
+    expect(describeTargets(myPlan)).toBe('yellow 4:30 · 1st crack 9:00 · drop 2:30 after 1st crack (11:30)')
   })
 
   it('still finds the built-in profiles', () => {
@@ -96,7 +96,7 @@ describe('plan from a roast', () => {
     expect(d.target_level).toBe('city_plus')
   })
 
-  it('uses the suggested cool time when given, and stops the curve at the old cool', () => {
+  it('uses the suggested drop time when given, and stops the curve at the old drop', () => {
     const d = planDataFromRoast(roast, 715)
     expect(d.drop).toEqual({ mode: 'dev', value: 155 })
     expect(d.curve.at(-1)?.t).toBe(660)

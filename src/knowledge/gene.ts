@@ -1,4 +1,5 @@
 import type { SourceId } from './sources'
+import type { EndMethod } from '../lib/types'
 
 // What is known about the Gene Café CBR-101, and published starting profiles for it.
 // Temperatures are °C (the °F figures in the sources are converted and rounded).
@@ -29,10 +30,10 @@ export const geneFacts: Fact[] = [
     sources: ['geneManual', 'smGene101'],
   },
   {
-    title: 'It keeps roasting while it cools',
+    title: 'Ending the roast: drop the beans, or use the cooling cycle',
     body:
-      'The beans stay in the hot drum during the cooling cycle, so they darken a bit more after you press cool. Sweet Maria’s advises stopping a little before the roast degree you want. The machine cools until about 60 °C (140 °F) before the drum stops. Some owners find the built-in cooling slow and dump the beans into a colander with a fan instead.',
-    sources: ['smGeneTips', 'hbGeneOpinions', 'hbGeneCooling'],
+      'In the Gene’s cooling cycle the beans stay in the hot drum, so they darken a bit more after you press cool. Sweet Maria’s advises stopping a little before the roast degree you want, and the machine cools until about 60 °C (140 °F) before the drum stops. Many owners find that slow and hard to predict, so they stop the roast, take the chamber out (it’s very hot: use heat-proof gloves) and tip the beans into a colander or sieve, some with a fan, to stop the roast closer to where they want it. Some then run the cooling cycle with the empty chamber to cool the machine down. Owners report better control this way; nobody has published a side-by-side taste test of the two.',
+    sources: ['smGeneTips', 'hbGeneOpinions', 'hbGeneCooling', 'hbGeneExternalCool', 'csGeneCooler'],
   },
   {
     title: 'Batch size: about 250 g, less for naturals',
@@ -95,7 +96,20 @@ export interface PlanStep {
   c: number
 }
 
-/** When to press cool: at a fixed time, a number of seconds after first crack, or at a DTR. */
+/** How you end a roast. The app calls the end of the roast "drop" either way. */
+export const endMethods: { id: EndMethod; name: string; detail: string }[] = [
+  { id: 'dump', name: 'Drop the beans and cool them myself', detail: 'Stop the Gene, take the chamber out and tip the beans into a sieve or colander.' },
+  { id: 'gene', name: 'The Gene’s cooling cycle', detail: 'Press cool and let the beans cool in the turning drum.' },
+]
+
+/** One sentence on how to end the roast at a given time (shown in the advice). */
+export function dropHowTo(method: EndMethod, at: string): string {
+  return method === 'gene'
+    ? `On the Gene: set the timer longer than ${at} and press cool yourself at ${at}. It keeps roasting a little in the cooling cycle, so press slightly early rather than late.`
+    : `On the Gene: set the timer longer than ${at}, stop it yourself at ${at} and get the beans into the sieve. They keep roasting until they’re out of the hot chamber, so do that just as quickly every time.`
+}
+
+/** When to drop: at a fixed time, a number of seconds after first crack, or at a DTR. */
 export interface PlanDrop {
   mode: 'time' | 'dev' | 'dtr'
   value: number // seconds for time/dev, a fraction (0.2 = 20%) for dtr
@@ -219,7 +233,7 @@ export function nextPlanStep(plan: Plan, t: number, fcS: number | null): { step:
   return upcoming.length ? { step: upcoming[0].step, at: upcoming[0].at } : null
 }
 
-/** When the plan says to press cool, given the actual (or planned) first crack. */
+/** When the plan says to drop, given the actual (or planned) first crack. */
 export function planDropAt(plan: Plan, fcS: number | null): number | null {
   const d = plan.drop
   if (!d) return null

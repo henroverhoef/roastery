@@ -52,7 +52,7 @@ function Form({ roast, existing }: { roast: Roast; existing: Tasting | undefined
     [roasts, tastings, roast],
   )
 
-  const preview = adviseTasting({ roast, bean, tasting: t, history, unit: settings.unit })
+  const preview = adviseTasting({ roast, bean, tasting: t, history, unit: settings.unit, ending: settings.ending })
   const days = daysBetween(roast.roasted_at, t.tasted_on)
   const aim = bean?.target_flavours.length ? bean.target_flavours : origin?.best ?? []
 

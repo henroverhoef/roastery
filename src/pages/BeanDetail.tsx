@@ -32,6 +32,7 @@ export default function BeanDetail() {
         tasting: [...lastTasted.ts].sort((a, b) => b.tasted_on.localeCompare(a.tasted_on))[0],
         history: rows.filter((x) => x.r.id !== lastTasted.r.id).map((x) => ({ roast: x.r, tastings: x.ts })),
         unit: settings.unit,
+        ending: settings.ending,
       })
     : null
 
@@ -71,7 +72,7 @@ export default function BeanDetail() {
             <table className="w-full min-w-[520px] text-sm tabular-nums">
               <thead>
                 <tr className="text-left text-xs text-stone-500">
-                  <th className="px-1 py-1">#</th><th className="px-1">Date</th><th className="px-1">1C</th><th className="px-1">Cool</th><th className="px-1">Dev</th><th className="px-1">DTR</th><th className="px-1">Loss</th><th className="px-1">Level</th><th className="px-1">★</th><th className="px-1">Flavours</th>
+                  <th className="px-1 py-1">#</th><th className="px-1">Date</th><th className="px-1">1C</th><th className="px-1">Drop</th><th className="px-1">Dev</th><th className="px-1">DTR</th><th className="px-1">Loss</th><th className="px-1">Level</th><th className="px-1">★</th><th className="px-1">Flavours</th>
                 </tr>
               </thead>
               <tbody>

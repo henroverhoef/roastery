@@ -86,7 +86,7 @@ export default function PublicRoast() {
         <Stat label="Weight loss" value={m.weightLossPct != null ? `${m.weightLossPct.toFixed(1)}%` : '–'} />
         <Stat label="Level" value={findLevel(roast.level)?.name ?? '–'} />
         <Stat label="Set temps" value={roast.setpoints.length ? roast.setpoints.map((s) => `${fmtTemp(s.c, unit).replace(/°.$/, '°')}`).join(' → ') : '–'} sub={roast.preheat_c ? `preheat ${fmtTemp(roast.preheat_c, unit)}` : undefined} />
-        <Stat label="At cool" value={fmtTemp(m.tempAtDropC, unit)} />
+        <Stat label="At drop" value={fmtTemp(m.tempAtDropC, unit)} />
       </div>
 
       <div className="card">

@@ -29,7 +29,7 @@ function niceStep(range: number, target: number) {
   return 10 * mag
 }
 
-const eventLabel: Record<string, string> = { yellow: 'Yellow', fc_start: '1C', fc_end: '1C end', sc_start: '2C', drop: 'Cool' }
+const eventLabel: Record<string, string> = { yellow: 'Yellow', fc_start: '1C', fc_end: '1C end', sc_start: '2C', drop: 'Drop' }
 
 export default function RoastChart({ roast, reference, referenceLabel, unit, nowS, height = 220, rorHeight = 84, ghostSetpoints, target, targetLabel = 'Plan', legendNames, shortLegend }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
@@ -169,7 +169,7 @@ export default function RoastChart({ roast, reference, referenceLabel, unit, now
           plan: target?.readings.length ? tempAt(target.readings, hoverT) : null,
         }
 
-  const summary = `Roast curve: ${sorted.length} readings${m.fcS != null ? `, first crack at ${fmtTime(m.fcS)}` : ''}${m.dropS != null ? `, cool at ${fmtTime(m.dropS)}` : ''}${last ? `, last reading ${tempIn(last.c, unit)}°${unit}` : ''}.`
+  const summary = `Roast curve: ${sorted.length} readings${m.fcS != null ? `, first crack at ${fmtTime(m.fcS)}` : ''}${m.dropS != null ? `, drop at ${fmtTime(m.dropS)}` : ''}${last ? `, last reading ${tempIn(last.c, unit)}°${unit}` : ''}.`
 
   return (
     <div ref={wrap} className="viz relative w-full select-none">

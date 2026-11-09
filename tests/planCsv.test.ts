@@ -36,6 +36,7 @@ const beans: Bean[] = [{
 describe('plan CSV', () => {
   it('round-trips a plan in °C', () => {
     const csv = planToCsv(plan, 'C', 'Brazil Cerrado Mineiro')
+    expect(csv).toContain('\ndrop_after_fc,2:30,,')
     expect(csv.split('\n').slice(0, 2)).toEqual(['roastery_plan,v1', 'key,time,temp,value'])
     expect(csv).toContain('note,,,"Cool later, more chocolate"')
     const back = parsePlanCsv(csv, { unit: 'C', beans })
@@ -85,6 +86,13 @@ Let me know how it tastes!`
     expect(p.warnings).toEqual(['Skipped “mystery,1,2,3”: unknown row.'])
   })
 
+  it('still reads the older cool_* rows', () => {
+    const base = 'roastery_plan,v1\nkey,time,temp,value\nname,,,Old\nset_start,,245,\n'
+    expect(parsePlanCsv(base + 'cool_after_fc,2:10,,', { unit: 'C' }).data.drop).toEqual({ mode: 'dev', value: 130 })
+    expect(parsePlanCsv(base + 'drop_at,11:00,,', { unit: 'C' }).data.drop).toEqual({ mode: 'time', value: 660 })
+    expect(parsePlanCsv(base + 'drop_dtr,,,21', { unit: 'C' }).data.drop).toEqual({ mode: 'dtr', value: 0.21 })
+  })
+
   it('reads semicolon-separated files and warns about an unknown bean', () => {
     const p = parsePlanCsv('roastery_plan;v1\nkey;time;temp;value\nname;;;Semi\nunit;;;C\nbean;;;Kenya AA\nset_start;;245;\ncool_at;11:30;;', { unit: 'C', beans })
     expect(p.errors).toEqual([])
@@ -122,8 +130,18 @@ describe('Copy for Claude with a plan', () => {
     expect(text).toContain('## The plan I roasted with')
     expect(text).toContain('- Yellow: planned 4:30, actual 4:50 (20 s later)')
     expect(text).toContain('- First crack: planned 9:00, actual 9:30 (30 s later)')
-    expect(text).toContain('- Cool: planned 12:00 (moved from 11:30 to follow the real first crack), actual 12:15 (15 s later)')
+    expect(text).toContain('- Drop: planned 12:00 (moved from 11:30 to follow the real first crack), actual 12:15 (15 s later)')
     expect(text).not.toContain('Please also give me a roast plan')
+  })
+
+  it('says how I end a roast', () => {
+    const dump = roastForClaude({ roast, bean: beans[0], tastings: [], history: [], unit: 'C' })
+    expect(dump).toContain('tip the beans into a big sieve')
+    expect(dump).toContain('“Drop” means when I stopped the roast to tip the beans out.')
+    expect(dump).not.toContain('beans keep roasting a bit in the drum')
+    const gene = roastForClaude({ roast, bean: beans[0], tastings: [], history: [], unit: 'C', ending: 'gene' })
+    expect(gene).toContain('the beans keep roasting a bit in the drum after I press cool')
+    expect(gene).toContain('“Drop” means when I pressed cool.')
   })
 
   it('asks for an importable plan, and its example imports cleanly', () => {

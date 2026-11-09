@@ -39,7 +39,7 @@ export default function PlanEdit() {
       bean_id: fromRoast.bean_id,
       data: {
         ...planDataFromRoast(fromRoast, drop),
-        note: drop != null && was != null ? `Cool moved to ${fmtTime(drop)} (was ${fmtTime(was)}), as the app suggested after tasting.` : null,
+        note: drop != null && was != null ? `Drop moved to ${fmtTime(drop)} (was ${fmtTime(was)}), as the app suggested after tasting.` : null,
       },
       created_at: now,
       updated_at: now,
@@ -158,7 +158,7 @@ function Editor({ initial, isNew }: { initial: PlanRow; isNew: boolean }) {
           <span>Maillard {fmtPct(m.maillardPct)}</span>
           <span>Development {m.devS != null ? fmtTime(m.devS) : '–'}</span>
           <span>DTR {fmtPct(m.dtr, 1)}</span>
-          <span>Cool {fmtTime(m.dropS)}</span>
+          <span>Drop {fmtTime(m.dropS)}</span>
         </div>
         {!data.curve.length && <p className="muted mt-1 text-xs">Add target points below (or copy a roast’s curve) to see a target line.</p>}
       </div>
@@ -242,7 +242,7 @@ function Editor({ initial, isNew }: { initial: PlanRow; isNew: boolean }) {
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Press cool">
+          <Field label="Drop">
             <select className="input px-2 text-sm" value={dropMode} onChange={(e) => setDropMode(e.target.value as PlanDrop['mode'])}>
               <option value="dev">After 1st crack</option>
               <option value="time">At a time</option>

@@ -98,5 +98,5 @@ export function lastEntryLabel(s: LiveState | null): string | null {
   if (kind === 'r') return 'reading'
   if (kind === 's') return 'set temp'
   const ev = s.roast.events[s.roast.events.length - 1]
-  return ev ? ({ yellow: 'yellow', fc_start: '1st crack', fc_end: '1C end', sc_start: '2nd crack', drop: 'cool' } as Record<string, string>)[ev.type] ?? ev.type : 'event'
+  return ev ? ({ yellow: 'yellow', fc_start: '1st crack', fc_end: '1C end', sc_start: '2nd crack', drop: 'drop' } as Record<string, string>)[ev.type] ?? ev.type : 'event'
 }

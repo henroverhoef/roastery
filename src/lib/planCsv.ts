@@ -25,9 +25,9 @@ export const PLAN_CSV_SPEC = `Roastery plan CSV format (one row per item, column
 - set_at_fc,0:30,233,                     optional, repeatable: change it this long after first crack starts
 - yellow,4:30,,                           optional: target time for yellow
 - first_crack,9:00,,                      optional: target time for first crack
-- cool_after_fc,2:30,,                    when to press cool, as time after first crack starts (preferred, it follows the real first crack)
-  or cool_at,11:30,,                      at a fixed time
-  or cool_dtr,,,22                        at a development time ratio in %
+- drop_after_fc,2:30,,                    when to drop (end the roast), as time after first crack starts (preferred, it follows the real first crack)
+  or drop_at,11:30,,                      at a fixed time
+  or drop_dtr,,,22                        at a development time ratio in %
 - curve,0:00,120,                         optional, repeatable: target display temperature points in time order (every 30–60 s is plenty)`
 
 // ——— writing ———
@@ -57,9 +57,9 @@ export function planToCsv(plan: Plan, unit: Unit, beanName?: string | null): str
   if (plan.targets?.yellow_s != null) lines.push(row('yellow', fmtTime(plan.targets.yellow_s)))
   if (plan.targets?.fc_s != null) lines.push(row('first_crack', fmtTime(plan.targets.fc_s)))
   const d = plan.drop
-  if (d?.mode === 'dev') lines.push(row('cool_after_fc', fmtTime(d.value)))
-  if (d?.mode === 'time') lines.push(row('cool_at', fmtTime(d.value)))
-  if (d?.mode === 'dtr') lines.push(row('cool_dtr', null, null, Math.round(d.value * 1000) / 10))
+  if (d?.mode === 'dev') lines.push(row('drop_after_fc', fmtTime(d.value)))
+  if (d?.mode === 'time') lines.push(row('drop_at', fmtTime(d.value)))
+  if (d?.mode === 'dtr') lines.push(row('drop_dtr', null, null, Math.round(d.value * 1000) / 10))
   for (const p of [...(plan.curve ?? [])].sort((a, b) => a.t - b.t)) lines.push(row('curve', fmtTime(p.t), t(p.c)))
   return lines.join('\n')
 }
@@ -112,16 +112,21 @@ const KEY_ALIASES: Record<string, string> = {
   fc: 'first_crack',
   first_crack_at: 'first_crack',
   yellow_at: 'yellow',
-  cool_after_first_crack: 'cool_after_fc',
-  cool_time: 'cool_at',
-  drop_at: 'cool_at',
-  dtr: 'cool_dtr',
+  drop_after_first_crack: 'drop_after_fc',
+  drop_time: 'drop_at',
+  dtr: 'drop_dtr',
+  // older files (and the Gene's own wording) say "cool"
+  cool_after_fc: 'drop_after_fc',
+  cool_after_first_crack: 'drop_after_fc',
+  cool_at: 'drop_at',
+  cool_time: 'drop_at',
+  cool_dtr: 'drop_dtr',
   batch: 'batch_g',
   green_g: 'batch_g',
   target_level: 'level',
   point: 'curve',
 }
-const KNOWN = new Set(['name', 'unit', 'bean', 'batch_g', 'preheat', 'level', 'note', 'set_start', 'set_at', 'set_at_fc', 'yellow', 'first_crack', 'cool_after_fc', 'cool_at', 'cool_dtr', 'curve'])
+const KNOWN = new Set(['name', 'unit', 'bean', 'batch_g', 'preheat', 'level', 'note', 'set_start', 'set_at', 'set_at_fc', 'yellow', 'first_crack', 'drop_after_fc', 'drop_at', 'drop_dtr', 'curve'])
 
 function findLevel(v: string): string | null {
   const norm = v.toLowerCase().replace(/\+/g, '_plus').replace(/[\s-]+/g, '_').replace(/__+/g, '_')
@@ -257,13 +262,13 @@ export function parsePlanCsv(text: string, opts: { unit: Unit; beans?: Bean[] })
         if (time == null) bad('no time')
         else data.targets.fc_s = Math.round(time)
         break
-      case 'cool_after_fc':
-      case 'cool_at': {
+      case 'drop_after_fc':
+      case 'drop_at': {
         if (time == null) bad('no time')
-        else data.drop = { mode: key === 'cool_at' ? 'time' : 'dev', value: Math.round(time) } satisfies PlanDrop
+        else data.drop = { mode: key === 'drop_at' ? 'time' : 'dev', value: Math.round(time) } satisfies PlanDrop
         break
       }
-      case 'cool_dtr': {
+      case 'drop_dtr': {
         let v = num(value) ?? num(cell(r, 'temp'))
         if (v != null && v > 1) v = v / 100
         if (v == null || v <= 0 || v >= 1) bad('DTR must be a percentage between 0 and 100')

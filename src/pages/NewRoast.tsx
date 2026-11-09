@@ -147,7 +147,7 @@ export default function NewRoast() {
             <>
               <p className="font-semibold">Roasting along with {follow.display_name}’s roast{follow.bean_name ? ` of ${follow.bean_name}` : ''}</p>
               <p className="muted mt-1">
-                {followCurve?.batch_g ? `${followCurve.batch_g} g · ` : ''}yellow {fmtTime(followM.yellowS)} · first crack {fmtTime(followM.fcS)} · cool {fmtTime(followM.dropS)} · DTR {fmtPct(followM.dtr)}
+                {followCurve?.batch_g ? `${followCurve.batch_g} g · ` : ''}yellow {fmtTime(followM.yellowS)} · first crack {fmtTime(followM.fcS)} · drop {fmtTime(followM.dropS)} · DTR {fmtPct(followM.dtr)}
                 {followCurve?.setpoints.length ? ` · set ${followCurve.setpoints.map((s) => `${tempIn(s.c, unit)}°`).join(' → ')}` : ''}
               </p>
               <p className="muted mt-1">Their curve is drawn behind yours while you roast. Remember every Gene reads a little differently.</p>
@@ -174,7 +174,7 @@ export default function NewRoast() {
         </Field>
         {reference && refM && (
           <p className="muted">
-            That roast: yellow {fmtTime(refM.yellowS)}, first crack {fmtTime(refM.fcS)}, cool {fmtTime(refM.dropS)}, DTR {fmtPct(refM.dtr)}
+            That roast: yellow {fmtTime(refM.yellowS)}, first crack {fmtTime(refM.fcS)}, drop {fmtTime(refM.dropS)}, DTR {fmtPct(refM.dtr)}
             {reference.setpoints.length ? `, set ${reference.setpoints.map((s) => `${tempIn(s.c, unit)}°`).join(' → ')}` : ''}.
           </p>
         )}
@@ -253,10 +253,14 @@ export default function NewRoast() {
         <p className="font-semibold">Before you press start</p>
         <ul className="mt-1 list-disc space-y-1 pl-5 text-stone-700 dark:text-stone-300">
           <li>Weigh the green beans, so you can weigh the roasted ones after.</li>
-          <li>Set the Gene’s timer longer than you need and press cool yourself. It keeps roasting a bit while it cools, so press slightly early.</li>
+          {settings.ending === 'gene' ? (
+            <li>Set the Gene’s timer longer than you need and press cool yourself, then tap Drop. It keeps roasting a bit while it cools, so press slightly early.</li>
+          ) : (
+            <li>Set the Gene’s timer longer than you need and stop it yourself. Tap Drop as you stop it, then get the beans into the sieve just as quickly every time: they keep roasting in the hot chamber. Have gloves ready.</li>
+          )}
           <li>Start this timer the moment the beans go in (or when you start the Gene).</li>
         </ul>
-        <SourceLinks ids={['smGeneTips']} className="mt-2" />
+        <SourceLinks ids={settings.ending === 'gene' ? ['smGeneTips'] : ['smGeneTips', 'hbGeneExternalCool']} className="mt-2" />
       </div>
 
       <button className="btn-primary w-full py-4 text-lg" onClick={start}>Beans in: start the timer</button>

@@ -1,4 +1,4 @@
-import type { Bean, Roast, Tasting, Unit } from './types'
+import type { Bean, EndMethod, Roast, Tasting, Unit } from './types'
 import type { SourceId } from '../knowledge/sources'
 import { computeMetrics, dropForDtr, stallBeforeFc, type Metrics } from './metrics'
 import { daysBetween, fmtDelta, fmtDuration, fmtPct, fmtTemp, fmtTime } from './format'
@@ -7,6 +7,7 @@ import { findOrigin, isAmericas, americasNotes, type Origin } from '../knowledge
 import { findProcess } from '../knowledge/processes'
 import { matchVarieties } from '../knowledge/varieties'
 import { DTR_HIGH, DTR_LOW, DTR_MID, findLevel, lossBandFor, restGuide } from '../knowledge/roasting'
+import { dropHowTo } from '../knowledge/gene'
 
 export type Tone = 'change' | 'keep' | 'info' | 'warn'
 
@@ -16,7 +17,7 @@ export interface AdviceItem {
   title: string
   body: string
   sources: SourceId[]
-  drop_s?: number // the suggested cool time, when the change is "cool earlier/later"
+  drop_s?: number // the suggested drop time, when the change is "drop earlier/later"
 }
 
 export interface Advice {
@@ -37,6 +38,7 @@ export interface AdviceContext {
   tasting: Tasting
   history: HistoryEntry[] // other roasts of the same bean
   unit: Unit
+  ending?: EndMethod // how you end a roast (default: drop the beans and cool them yourself)
 }
 
 const round5 = (s: number) => Math.round(s / 5) * 5
@@ -70,7 +72,7 @@ function bestOf(history: HistoryEntry[], minRating: number): { entry: HistoryEnt
 }
 
 export function adviseTasting(ctx: AdviceContext): Advice {
-  const { roast, bean, tasting, history, unit } = ctx
+  const { roast, bean, tasting, history, unit, ending = 'dump' } = ctx
   const m = computeMetrics(roast)
   const origin = findOrigin(bean?.country)
   const process = findProcess(bean?.process)
@@ -194,7 +196,7 @@ export function adviseTasting(ctx: AdviceContext): Advice {
 
   // ——— the main change ———
   if (direction !== 0) {
-    items.push(developmentChange(direction, m, tLevel, origin, unit))
+    items.push(developmentChange(direction, m, tLevel, origin, unit, ending))
   } else if (under.length && over.length) {
     items.push({
       id: 'uneven',
@@ -321,23 +323,22 @@ function repeatRecipe(roast: Roast, m: Metrics, unit: Unit): string {
   const sets = [...roast.setpoints].sort((a, b) => a.t - b.t)
   if (sets.length) parts.push(sets.map((s) => `${fmtTemp(s.c, unit)} at ${fmtTime(s.t)}`).join(', then '))
   if (m.fcS != null) parts.push(`first crack ${fmtTime(m.fcS)}`)
-  if (m.dropS != null) parts.push(`cool at ${fmtTime(m.dropS)}`)
+  if (m.dropS != null) parts.push(`drop at ${fmtTime(m.dropS)}`)
   return parts.join(', ') || 'log the same settings'
 }
 
-function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null, origin: Origin | undefined, unit: Unit): AdviceItem {
+function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null, origin: Origin | undefined, unit: Unit, ending: EndMethod): AdviceItem {
   const level = findLevel(tLevel)
   const dark = level ? level.rank >= 4 : false
-  const sources: SourceId[] = ['raoDtr', 'smGeneTips']
-  const geneHow = (dropAt: number) =>
-    ` On the Gene: set the timer longer than ${fmtTime(dropAt)} and press cool yourself at ${fmtTime(dropAt)}. It keeps roasting a little in the cooling cycle, so press slightly early rather than late.`
+  const sources: SourceId[] = ending === 'gene' ? ['raoDtr', 'smGeneTips'] : ['raoDtr', 'smGeneTips', 'hbGeneExternalCool']
+  const geneHow = (dropAt: number) => ` ${dropHowTo(ending, fmtTime(dropAt))}`
 
   if (m.fcS == null || m.totalS == null) {
     return {
       id: 'dev-nofc',
       tone: 'change',
       title: direction > 0 ? 'Develop it longer' : 'Develop it less',
-      body: `${direction > 0 ? 'Let it go longer before pressing cool' : 'Press cool sooner'}. First crack wasn’t logged on this roast, so the app can’t size the change. Tap “1st crack” when you hear (or see) it next time, and it’ll tell you the seconds.`,
+      body: `${direction > 0 ? 'Let it go longer before you drop' : 'Drop sooner'}. First crack wasn’t logged on this roast, so the app can’t size the change. Tap “1st crack” when you hear (or see) it next time, and it’ll tell you the seconds.`,
       sources: ['raoDtr'],
     }
   }
@@ -356,7 +357,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
       body:
         direction > 0
           ? `Second crack started at ${fmtTime(m.scS)} and you stopped ${fmtDuration(sinceSc)} later. For a darker cup, keep going a little longer into second crack, in small steps.${geneHow(total)}`
-          : `Second crack started at ${fmtTime(m.scS)} and you stopped ${fmtDuration(sinceSc)} into it. Pressing cool nearer the first snaps of second crack (around ${fmtTime(m.scS)}) should take the edge off the roastiness.${geneHow(m.scS)}`,
+          : `Second crack started at ${fmtTime(m.scS)} and you stopped ${fmtDuration(sinceSc)} into it. Dropping nearer the first snaps of second crack (around ${fmtTime(m.scS)}) should take the edge off the roastiness.${geneHow(m.scS)}`,
       sources: ['smGeneTips', 'ozoneLevels'],
     }
   }
@@ -370,7 +371,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
         drop_s: Math.round(drop),
         tone: 'change',
         title: `Drop about ${later} s later (at ${fmtTime(drop)})`,
-        body: `First crack was at ${fmtTime(fc)} and you pressed cool at ${fmtTime(total)}: ${fmtDuration(m.devS ?? 0)} of development, DTR ${fmtPct(dtr)}. That’s below the 20–25% Scott Rao prefers. Cooling at ${fmtTime(drop)} gives 20%; ${fmtTime(at(DTR_MID))} gives 22.5%.${geneHow(drop)}`,
+        body: `First crack was at ${fmtTime(fc)} and you dropped at ${fmtTime(total)}: ${fmtDuration(m.devS ?? 0)} of development, DTR ${fmtPct(dtr)}. That’s below the 20–25% Scott Rao prefers. Dropping at ${fmtTime(drop)} gives 20%; ${fmtTime(at(DTR_MID))} gives 22.5%.${geneHow(drop)}`,
         sources,
       }
     }
@@ -404,7 +405,7 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
       drop_s: Math.round(drop),
       tone: 'change',
       title: `Drop about ${earlier} s earlier (at ${fmtTime(drop)})`,
-      body: `First crack ${fmtTime(fc)}, cool at ${fmtTime(total)}: ${fmtDuration(m.devS ?? 0)} of development, DTR ${fmtPct(dtr)}. That’s above Rao’s 20–25%. Cooling at ${fmtTime(drop)} gives 25%; ${fmtTime(at(DTR_MID))} gives 22.5%.${geneHow(drop)}`,
+      body: `First crack ${fmtTime(fc)}, drop at ${fmtTime(total)}: ${fmtDuration(m.devS ?? 0)} of development, DTR ${fmtPct(dtr)}. That’s above Rao’s 20–25%. Dropping at ${fmtTime(drop)} gives 25%; ${fmtTime(at(DTR_MID))} gives 22.5%.${geneHow(drop)}`,
       sources,
     }
   }
@@ -424,8 +425,8 @@ function developmentChange(direction: 1 | -1, m: Metrics, tLevel: string | null,
     id: 'dev-less-heat',
     tone: 'change',
     title: 'Less heat at the end rather than less time',
-    body: `Development was already short (${fmtDuration(m.devS ?? 0)}, DTR ${fmtPct(dtr)}), so the roastiness probably came from heat, not time. Turn the set temperature down when first crack starts${m.setAtFcC != null ? ` (it was ${fmtTemp(m.setAtFcC, unit)})` : ''}: published Gene profiles drop by roughly 2–20 °C there (Roast Rebels uses 10 °C and 20 °C). Also press cool a little earlier, because the Gene keeps roasting while it cools, and tip the beans into a colander once the cool cycle starts. Don’t cut the heat so hard that the roast stalls, which tastes flat and baked.`,
-    sources: ['roastRebels', 'hbGeneBatch2', 'smGeneTips', 'hbGeneCooling', 'royalNyDev'],
+    body: `Development was already short (${fmtDuration(m.devS ?? 0)}, DTR ${fmtPct(dtr)}), so the roastiness probably came from heat, not time. Turn the set temperature down when first crack starts${m.setAtFcC != null ? ` (it was ${fmtTemp(m.setAtFcC, unit)})` : ''}: published Gene profiles drop by roughly 2–20 °C there (Roast Rebels uses 10 °C and 20 °C). ${ending === 'gene' ? 'Also press cool a little earlier, because the Gene keeps roasting while it cools, or tip the beans into a colander instead of using the cooling cycle.' : 'Also get the beans out of the chamber and into the sieve quickly: they keep roasting until they’re out.'} Don’t cut the heat so hard that the roast stalls, which tastes flat and baked.`,
+    sources: ['roastRebels', 'hbGeneBatch2', 'smGeneTips', 'hbGeneCooling', 'hbGeneExternalCool', 'royalNyDev'],
   }
 }
 

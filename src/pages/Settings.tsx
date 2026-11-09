@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../data/store'
 import { Field, Header, numOrNull } from '../components/ui'
 import { allRoastsCsv, copyText, downloadText } from '../lib/export'
+import { endMethods } from '../knowledge/gene'
 
 export default function Settings() {
   const { settings, saveSettings, session, signOut, roasts, beans, tastings, pending, refresh } = useStore()
@@ -38,6 +39,17 @@ export default function Settings() {
               <button key={s} className={settings.reminder_s === s ? 'btn-primary px-0' : 'btn-secondary px-0'} onClick={() => saveSettings({ reminder_s: s })}>{s ? `${s}s` : 'Off'}</button>
             ))}
           </div>
+        </div>
+        <div>
+          <span className="label">I end a roast by</span>
+          <div className="space-y-1.5">
+            {endMethods.map((e) => (
+              <button key={e.id} type="button" onClick={() => saveSettings({ ending: e.id })} className={`w-full rounded-xl px-3 py-2 text-left ring-1 ${settings.ending === e.id ? 'bg-amber-100 ring-amber-500 dark:bg-amber-900/50' : 'ring-stone-200 dark:ring-stone-700'}`}>
+                <span className="font-semibold">{e.name}</span> <span className="text-sm text-stone-600 dark:text-stone-400">{e.detail}</span>
+              </button>
+            ))}
+          </div>
+          <p className="muted mt-1 text-xs">The app calls the end of the roast “Drop” either way. This changes the tips and what Copy for Claude says about your setup.</p>
         </div>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={settings.sound} onChange={(e) => saveSettings({ sound: e.target.checked })} /> Beep (otherwise vibrate only)

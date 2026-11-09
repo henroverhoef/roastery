@@ -15,7 +15,7 @@ import { findPlan } from '../knowledge/gene'
 import { findOrigin } from '../knowledge/origins'
 
 const eventNames: Record<string, string> = {
-  yellow: 'Yellow', fc_start: '1st crack', fc_end: '1st crack end', sc_start: '2nd crack', drop: 'Cool', colour: 'Colour', smell: 'Smell', note: 'Note',
+  yellow: 'Yellow', fc_start: '1st crack', fc_end: '1st crack end', sc_start: '2nd crack', drop: 'Drop', colour: 'Colour', smell: 'Smell', note: 'Note',
 }
 
 export default function RoastDetail() {
@@ -42,7 +42,7 @@ export default function RoastDetail() {
   const n = numbers.get(roast.id)
   const compare = roasts.find((r) => r.id === (compareId || '')) ?? null
   const latest = mine[0]
-  const advice = latest ? adviseTasting({ roast, bean, tasting: latest, history, unit }) : null
+  const advice = latest ? adviseTasting({ roast, bean, tasting: latest, history, unit, ending: settings.ending }) : null
   const plan = findPlan(roast.plan_id, myPlans)
   const dropChange = advice?.items.find((i) => i.tone === 'change' && i.drop_s != null)
   const band = lossBandFor(roast.level)
@@ -77,7 +77,7 @@ export default function RoastDetail() {
         <Stat label="Weight loss" value={m.weightLossPct != null ? `${m.weightLossPct.toFixed(1)}%` : '–'} sub={roast.batch_g ? `${roast.batch_g} → ${roast.roasted_g ?? '?'} g` : undefined} />
         <Stat label="Level" value={findLevel(roast.level)?.name ?? '–'} sub={roast.target_level ? `aimed: ${findLevel(roast.target_level)?.name}` : undefined} />
         <Stat label="2nd crack" value={fmtTime(m.scS)} />
-        <Stat label="At cool" value={fmtTemp(m.tempAtDropC, unit)} sub={m.maxSetC != null ? `max set ${fmtTemp(m.maxSetC, unit)}` : undefined} />
+        <Stat label="At drop" value={fmtTemp(m.tempAtDropC, unit)} sub={m.maxSetC != null ? `max set ${fmtTemp(m.maxSetC, unit)}` : undefined} />
       </div>
       {roast.roasted_g == null && roast.batch_g != null && (
         <div className="card flex items-end gap-2">
@@ -125,7 +125,7 @@ export default function RoastDetail() {
           <AdviceList advice={advice} />
           {dropChange?.drop_s != null && (
             <Link to={`/plans/new?from=${roast.id}&drop=${dropChange.drop_s}`} className="btn-primary mt-3 w-full">
-              Plan the next roast: cool at {fmtTime(dropChange.drop_s)}
+              Plan the next roast: drop at {fmtTime(dropChange.drop_s)}
             </Link>
           )}
           <p className="muted mt-3 text-xs">Based on your latest tasting ({latest.tasted_on}). Change one thing at a time so you can tell what it did.</p>
@@ -151,7 +151,7 @@ export default function RoastDetail() {
           <button
             className="btn-primary"
             onClick={async () => {
-              const ok = await copyText(roastForClaude({ roast, bean, tastings: mine, history, unit, n, plans: myPlans, wantPlan }))
+              const ok = await copyText(roastForClaude({ roast, bean, tastings: mine, history, unit, n, plans: myPlans, wantPlan, ending: settings.ending }))
               flash(ok ? 'Copied: paste it into Claude' : 'Couldn’t copy')
             }}
           >
@@ -189,7 +189,7 @@ export default function RoastDetail() {
           {roast.notes && <p className="mt-1 whitespace-pre-wrap">{roast.notes}</p>}
         </div>
       )}
-      {m.devS != null && <p className="muted text-xs">Development {fmtDuration(m.devS)} from first crack at {fmtTime(m.fcS)} to cool at {fmtTime(m.dropS)}.</p>}
+      {m.devS != null && <p className="muted text-xs">Development {fmtDuration(m.devS)} from first crack at {fmtTime(m.fcS)} to drop at {fmtTime(m.dropS)}.</p>}
 
       <button
         className="btn-ghost w-full text-red-700 dark:text-red-400"
